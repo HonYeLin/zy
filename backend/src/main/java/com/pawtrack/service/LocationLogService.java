@@ -153,4 +153,8 @@ public class LocationLogService {
         String wkt = String.format("POINT(%f %f)", lat, lng);
         return locationLogRepository.findLogsWithinRadius(wkt, radius);
     }
+
+    public List<LocationLog> findAllLogs() {
+        return locationLogRepository.findAll();
+    }
 }

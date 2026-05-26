@@ -34,4 +34,9 @@ public class LocationLogController {
             @RequestParam(defaultValue = "50") Double radius) {
         return ResponseEntity.ok(locationLogService.findWithinRadius(lat, lng, radius));
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<LocationLog>> getAllLogs() {
+        return ResponseEntity.ok(locationLogService.findAllLogs());
+    }
 }

@@ -44,4 +44,16 @@ public class LocationLog {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt; // 数据录入时间
+
+    public String getBehaviorLabel() {
+        if (behaviorTag == null) return "活动";
+        switch (behaviorTag) {
+            case EATING: return "进食/饮水";
+            case SLEEPING: return "睡觉/休息";
+            case PLAYING: return "玩耍/嬉戏";
+            case SUNBATHING: return "晒太阳";
+            case WALKING: return "行走/奔跑";
+            default: return "其他";
+        }
+    }
 }

@@ -20,8 +20,7 @@ public class PawTrackApplication {
             if (animalRepository.count() == 0) {
                 Animal animal = new Animal();
                 animal.setName("大橘");
-                animal.setSpecies("Cat");
-                animal.setDescription("校园里的胖橘猫，很亲人");
+                animal.setBreed("Cat");
                 animalRepository.save(animal);
                 System.out.println("====== 测试数据 '大橘' 初始化成功！ ======");
             }

@@ -6,6 +6,7 @@ const center = ref([116.397428, 39.90923]);
 const zoom = ref(16);
 const map = ref<any>(null);
 const animalLogs = ref<any[]>([]);
+const userLocation = ref<[number, number] | null>(null); // 用户当前定位位置
 
 // Form UI State
 const isLocating = ref(false);
@@ -30,32 +31,59 @@ const isFormValid = computed(() => {
 const initMap = (mapInstance: any) => {
   map.value = mapInstance;
   fetchNearbyLogs();
+  autoLocateUser(); // 打开页面自动获取当前位置并跳转
 };
 
 const fetchNearbyLogs = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/locations/nearby', {
-      params: { lng: center.value[0], lat: center.value[1], radius: 2000 }
-    });
+    // 获取当前数据库中所有记录的实体
+    const res = await axios.get('http://localhost:8080/api/locations/all');
     animalLogs.value = res.data;
   } catch (error) {
-    console.error('获取附近数据失败:', error);
+    console.error('获取所有数据失败:', error);
   }
 };
 
-// 1. 点击侧边独立定位按钮：仅移动中心
+// 自动定位用户并跳转居中
+const autoLocateUser = () => {
+  if (!map.value) return;
+  if ((window as any).AMap && (window as any).AMap.Geolocation) {
+    const geolocation = new (window as any).AMap.Geolocation({
+      enableHighAccuracy: true,
+      timeout: 8000,
+      zoomToAccuracy: true,
+      showMarker: false, // 我们自己在 Vue 中绘制更漂亮的脉冲水波纹定位点
+      showCircle: true,
+      panToLocation: true
+    });
+
+    geolocation.getCurrentPosition((status: string, result: any) => {
+      if (status === 'complete') {
+        userLocation.value = [result.position.lng, result.position.lat];
+        center.value = [result.position.lng, result.position.lat];
+        map.value.setCenter([result.position.lng, result.position.lat]);
+      } else {
+        console.warn('自动获取当前定位失败:', result);
+      }
+    });
+  }
+};
+
+// 1. 点击侧边独立定位按钮：仅移动中心并更新用户定位
 const handleLocateOnlyClick = () => {
   if (!map.value || isLocatingOnly.value) return;
   isLocatingOnly.value = true;
   
   if ((window as any).AMap && (window as any).AMap.Geolocation) {
     const geolocation = new (window as any).AMap.Geolocation({
-      enableHighAccuracy: true, timeout: 5000, zoomToAccuracy: true
+      enableHighAccuracy: true, timeout: 5000, zoomToAccuracy: true,
+      showMarker: false, showCircle: true
     });
 
     geolocation.getCurrentPosition((status: string, result: any) => {
       isLocatingOnly.value = false;
       if (status === 'complete') {
+        userLocation.value = [result.position.lng, result.position.lat];
         center.value = [result.position.lng, result.position.lat];
         map.value.setCenter([result.position.lng, result.position.lat]);
       } else {
@@ -75,12 +103,14 @@ const handleAddClick = () => {
   
   if ((window as any).AMap && (window as any).AMap.Geolocation) {
     const geolocation = new (window as any).AMap.Geolocation({
-      enableHighAccuracy: true, timeout: 5000, zoomToAccuracy: true
+      enableHighAccuracy: true, timeout: 5000, zoomToAccuracy: true,
+      showMarker: false, showCircle: true
     });
 
     geolocation.getCurrentPosition((status: string, result: any) => {
       isLocating.value = false;
       if (status === 'complete') {
+        userLocation.value = [result.position.lng, result.position.lat];
         currentLocation.value = { lng: result.position.lng, lat: result.position.lat };
         center.value = [result.position.lng, result.position.lat];
         map.value.setCenter([result.position.lng, result.position.lat]);
@@ -181,6 +211,18 @@ const submitMarker = async () => {
                 <path d="M12 11c-1.8 0-3.5 1.5-3.5 3.3 0 1.8 1.5 3.2 3.5 3.2s3.5-1.4 3.5-3.2c0-1.8-1.7-3.3-3.5-3.3z"/>
               </svg>
             </template>
+          </div>
+        </el-amap-marker>
+
+        <!-- 用户当前位置脉冲水波纹标记 -->
+        <el-amap-marker
+          v-if="userLocation"
+          :position="userLocation"
+          title="您当前的位置"
+        >
+          <div class="user-position-dot">
+            <div class="dot-core"></div>
+            <div class="dot-halo"></div>
           </div>
         </el-amap-marker>
       </el-amap>
@@ -827,5 +869,43 @@ const submitMarker = async () => {
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+/* 用户当前定位水波纹脉冲点样式 */
+.user-position-dot {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dot-core {
+  width: 12px;
+  height: 12px;
+  background-color: #2196F3;
+  border: 2.5px solid #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(33, 150, 243, 0.7);
+  z-index: 2;
+}
+.dot-halo {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background-color: rgba(33, 150, 243, 0.4);
+  border-radius: 50%;
+  animation: pulse-ring 1.8s infinite ease-in-out;
+  z-index: 1;
+}
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 </style>
