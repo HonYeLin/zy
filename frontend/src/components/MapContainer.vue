@@ -205,6 +205,7 @@ const handleMapClick = (e: any) => {
           v-for="log in animalLogs"
           :key="log.id"
           :position="[log.longitude, log.latitude]"
+          :offset="[-18, -18]"
           :title="`${log.animal?.name || '未知小动物'} (${log.behaviorTag || '活动'}): ${log.description || '无特征描述'}`"
         >
           <div class="custom-marker" :class="log.animal?.breed?.toLowerCase()">
@@ -242,6 +243,7 @@ const handleMapClick = (e: any) => {
         <el-amap-marker
           v-if="userLocation"
           :position="userLocation"
+          :offset="[-10, -10]"
           title="您当前的位置"
         >
           <div class="user-position-dot">
@@ -253,6 +255,7 @@ const handleMapClick = (e: any) => {
         <el-amap-marker
           v-if="tempMarker"
           :position="[tempMarker.lng, tempMarker.lat]"
+          :offset="[-16, -32]"
           title="再次点击此标记记录发现"
           @click="openModal"
         >
@@ -957,7 +960,6 @@ const handleMapClick = (e: any) => {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transform: translate(0, -90%);
 }
 
 .temp-marker-pulse {
