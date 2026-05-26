@@ -14,7 +14,7 @@ import MapContainer from './components/MapContainer.vue'
         </svg>
       </div>
       <div class="title-container">
-        <h1>Campus Paw-Track</h1>
+        <h1>爪印</h1>
         <p>让校园里的小生命都被温柔看见</p>
       </div>
     </header>

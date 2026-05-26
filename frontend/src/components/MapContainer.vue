@@ -418,7 +418,7 @@ const submitMarker = async () => {
   position: absolute;
   right: 16px;
   bottom: 80px;
-  z-index: 100;
+  z-index: 1000;
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -495,7 +495,7 @@ const submitMarker = async () => {
   bottom: -24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100;
+  z-index: 1000;
 }
 
 .paw-fab {
@@ -818,5 +818,14 @@ const submitMarker = async () => {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
+}
+
+/* 隐藏高德地图版权信息和 Logo，避免与悬浮按钮重叠，提升视觉高级感 */
+:deep(.amap-copyright),
+:deep(.amap-logo) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 </style>
