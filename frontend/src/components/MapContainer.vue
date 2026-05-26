@@ -17,6 +17,10 @@ const currentLocation = ref({ lng: 0, lat: 0 });
 const formType = ref('Cat'); // 'Cat' | 'Dog' | 'Other'
 const formNickname = ref('');
 const formFeatures = ref('');
+const formBehaviorTag = ref(''); // '' | 'EATING' | 'SLEEPING' | 'PLAYING' | 'SUNBATHING' | 'WALKING' | 'OTHER'
+const formQrCodeId = ref('');
+const formTimeOffset = ref(0); // minutes offset: 0, 10, 30, 60, 120
+const formPhotoUrl = ref('');
 const isSubmitting = ref(false);
 
 const isFormValid = computed(() => {
@@ -98,6 +102,10 @@ const openModal = () => {
   formType.value = 'Cat';
   formNickname.value = '';
   formFeatures.value = '';
+  formBehaviorTag.value = '';
+  formQrCodeId.value = '';
+  formTimeOffset.value = 0;
+  formPhotoUrl.value = '';
 };
 
 const closeModal = () => {
@@ -118,7 +126,11 @@ const submitMarker = async () => {
       nickname: formNickname.value.trim(),
       features: formFeatures.value.trim(),
       longitude: currentLocation.value.lng,
-      latitude: currentLocation.value.lat
+      latitude: currentLocation.value.lat,
+      behaviorTag: formBehaviorTag.value,
+      qrCodeId: formQrCodeId.value.trim(),
+      timeOffset: formTimeOffset.value,
+      photoUrl: formPhotoUrl.value.trim()
     });
     isSubmitting.value = false;
     closeModal();
@@ -221,12 +233,13 @@ const submitMarker = async () => {
           </button>
           
           <div class="modal-header">
-            <h3>📍 记录小生命</h3>
+            <h3>📍 在这发现了...</h3>
             <p>我们在 ({{ currentLocation.lng.toFixed(3) }}, {{ currentLocation.lat.toFixed(3) }}) 发现了谁？</p>
           </div>
 
           <div class="modal-body">
             <!-- 动物类型选择器 (Segmented Control) -->
+            <div class="input-label-tag">发现的动物类型</div>
             <div class="type-selector">
               <label class="type-btn" :class="{ active: formType === 'Cat' }">
                 <input type="radio" v-model="formType" value="Cat">
@@ -275,9 +288,97 @@ const submitMarker = async () => {
             </div>
             
             <div class="input-group">
-              <textarea v-model="formFeatures" placeholder="有什么特征？(如：左耳缺角，很亲人)" rows="3" class="elegant-input"></textarea>
+              <textarea v-model="formFeatures" placeholder="有什么特征？(如：左耳缺角，很亲人)" rows="2" class="elegant-input"></textarea>
             </div>
+
+            <!-- 行为状态选择器 (behavior_tag) -->
+            <div class="input-label-tag">当前状态行为 (不选则由 AI 自动推断)</div>
+            <div class="behavior-selector-grid">
+              <label class="behavior-btn" :class="{ active: formBehaviorTag === 'EATING' }">
+                <input type="radio" v-model="formBehaviorTag" value="EATING">
+                <div class="behavior-btn-content">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 0 0 18 0" />
+                    <path d="M21 12H3" />
+                    <path d="M6 8c1.5-1 3 0 4.5-1s2.5 1.5 4.5-.5" />
+                  </svg>
+                  <span>吃喝</span>
+                </div>
+              </label>
+              <label class="behavior-btn" :class="{ active: formBehaviorTag === 'SLEEPING' }">
+                <input type="radio" v-model="formBehaviorTag" value="SLEEPING">
+                <div class="behavior-btn-content">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                    <path d="M19 3v4M17 5h4" />
+                  </svg>
+                  <span>睡觉</span>
+                </div>
+              </label>
+              <label class="behavior-btn" :class="{ active: formBehaviorTag === 'PLAYING' }">
+                <input type="radio" v-model="formBehaviorTag" value="PLAYING">
+                <div class="behavior-btn-content">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9 3.5c1.5 2.5 1.5 6 0 8.5m6-8.5c-1.5 2.5-1.5 6 0 8.5M3.5 9c2.5 1.5 6 1.5 8.5 0m-8.5 6c2.5-1.5 6-1.5 8.5 0" />
+                  </svg>
+                  <span>玩耍</span>
+                </div>
+              </label>
+              <label class="behavior-btn" :class="{ active: formBehaviorTag === 'SUNBATHING' }">
+                <input type="radio" v-model="formBehaviorTag" value="SUNBATHING">
+                <div class="behavior-btn-content">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                  </svg>
+                  <span>晒太阳</span>
+                </div>
+              </label>
+              <label class="behavior-btn" :class="{ active: formBehaviorTag === 'WALKING' }">
+                <input type="radio" v-model="formBehaviorTag" value="WALKING">
+                <div class="behavior-btn-content">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 22c0-3 3-4 5-6s3-3 2-6M21 2c0 3-3 4-5 6s-3 3-2 6" />
+                  </svg>
+                  <span>行走</span>
+                </div>
+              </label>
+              <label class="behavior-btn" :class="{ active: formBehaviorTag === 'OTHER' }">
+                <input type="radio" v-model="formBehaviorTag" value="OTHER">
+                <div class="behavior-btn-content">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span>其他</span>
+                </div>
+              </label>
+            </div>
+
+            <!-- 附加选填信息 -->
+            <div class="input-label-tag">选填附加信息</div>
             
+            <div class="form-row-2">
+              <div class="input-group">
+                <select v-model="formTimeOffset" class="elegant-input elegant-select">
+                  <option :value="0">发现时间：刚才</option>
+                  <option :value="10">发现时间：10分钟前</option>
+                  <option :value="30">发现时间：半小时前</option>
+                  <option :value="60">发现时间：1小时前</option>
+                  <option :value="120">发现时间：2小时前</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <input type="text" v-model="formQrCodeId" placeholder="挂牌二维码ID (选填)" class="elegant-input" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <input type="text" v-model="formPhotoUrl" placeholder="照片链接 URL (选填)" class="elegant-input" />
+            </div>
+
             <div class="validation-tip" v-if="!isFormValid">
               * 请至少填写“昵称”或“特征”以标记足迹
             </div>
@@ -645,5 +746,77 @@ const submitMarker = async () => {
   margin: 12px 0 0 0;
   font-weight: 500;
   letter-spacing: 0.2px;
+}
+
+.input-label-tag {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #558B2F;
+  margin: 14px 0 8px 4px;
+  text-align: left;
+}
+
+.behavior-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+  background: rgba(0,0,0,0.02);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.behavior-btn {
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.behavior-btn input {
+  display: none;
+}
+
+.behavior-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #666;
+  transition: all 0.3s;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.behavior-btn.active .behavior-btn-content {
+  background: white;
+  color: #FF9800;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.behavior-btn-content svg {
+  transition: transform 0.2s;
+}
+
+.behavior-btn:hover .behavior-btn-content svg {
+  transform: scale(1.15);
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.elegant-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 5 3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
 }
 </style>
