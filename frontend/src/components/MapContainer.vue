@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 
 const center = ref([116.397428, 39.90923]); 
@@ -7,6 +7,7 @@ const zoom = ref(16);
 const map = ref<any>(null);
 const animalLogs = ref<any[]>([]);
 const userLocation = ref<[number, number] | null>(null); // 用户当前定位位置
+const tempMarker = ref<{ lng: number, lat: number } | null>(null); // 用户点击地图生成的临时标记
 
 // Form UI State
 const isLocating = ref(false);
@@ -140,6 +141,7 @@ const openModal = () => {
 
 const closeModal = () => {
   showModal.value = false;
+  tempMarker.value = null; // 关闭页面时清除地图上的临时标记
 };
 
 // 3. 提交表单 (对接后端 DTO 格式)
@@ -171,12 +173,34 @@ const submitMarker = async () => {
     isSubmitting.value = false;
   }
 };
+
+let refreshIntervalId: any = null;
+
+onMounted(() => {
+  // 持续每 5 秒自动拉取一次数据库最新的标记点，保持地图数据实时刷新
+  refreshIntervalId = setInterval(() => {
+    fetchNearbyLogs();
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+  }
+});
+
+// 点击地图空白处，先在地图上生成绿色临时标记，再次点击该标记才会打开表单
+const handleMapClick = (e: any) => {
+  const { lng, lat } = e.lnglat;
+  tempMarker.value = { lng, lat };
+  currentLocation.value = { lng, lat };
+};
 </script>
 
 <template>
   <div class="map-wrapper">
     <div class="map-container">
-      <el-amap :center="center" :zoom="zoom" @init="initMap" :show-label="false">
+      <el-amap :center="center" :zoom="zoom" @init="initMap" @click="handleMapClick" :show-label="false">
         <el-amap-marker
           v-for="log in animalLogs"
           :key="log.id"
@@ -223,6 +247,23 @@ const submitMarker = async () => {
           <div class="user-position-dot">
             <div class="dot-core"></div>
             <div class="dot-halo"></div>
+          </div>
+        </el-amap-marker>
+        <!-- 临时选点标记，再次点击此标记弹出记录面板 -->
+        <el-amap-marker
+          v-if="tempMarker"
+          :position="[tempMarker.lng, tempMarker.lat]"
+          title="再次点击此标记记录发现"
+          @click="openModal"
+        >
+          <div class="temp-marker-container">
+            <div class="temp-marker-pulse">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2E7D32" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3" fill="#2E7D32"></circle>
+              </svg>
+            </div>
+            <div class="temp-marker-tooltip">在这发现了... (点我记录)</div>
           </div>
         </el-amap-marker>
       </el-amap>
@@ -906,6 +947,67 @@ const submitMarker = async () => {
   100% {
     transform: scale(1.6);
     opacity: 0;
+  }
+}
+
+/* 临时定位绿色标记点脉冲与气泡样式 */
+.temp-marker-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transform: translate(0, -90%);
+}
+
+.temp-marker-pulse {
+  animation: bounce-marker 1s infinite alternate cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  filter: drop-shadow(0 4px 6px rgba(46, 125, 50, 0.3));
+}
+
+.temp-marker-tooltip {
+  white-space: nowrap;
+  background: rgba(46, 125, 50, 0.95);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  animation: temp-fade-in 0.3s ease-out;
+  position: relative;
+}
+
+.temp-marker-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent rgba(46, 125, 50, 0.95) transparent;
+}
+
+@keyframes bounce-marker {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.05);
+  }
+}
+
+@keyframes temp-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
