@@ -125,6 +125,14 @@ const openAiModal = async () => {
   await fetchBehaviorReasoning(selectedAnimalId.value!);
 };
 
+// Smooth scroll to animal directory at the bottom
+const scrollToDirectory = () => {
+  const el = document.querySelector('.directory-section-bottom');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+};
+
 // Fetch behavior prediction for the selected animal
 const fetchBehaviorReasoning = async (animalId: number) => {
   isAiLoading.value = true;
@@ -328,6 +336,18 @@ onUnmounted(() => {
           <div class="map-box">
             <MapContainer @select-animal="handleSelectAnimal" />
           </div>
+          <!-- 算算TA在干什么 按钮 -->
+          <div class="map-actions-bottom">
+            <button class="ai-calc-btn" @click="openAiModal">
+              <span class="icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 4V2M15 16v-2M8 9h2M20 9h-2M17.8 5.1l-1.4 1.4M17.8 12.9l-1.4-1.4M12.2 5.1l1.4 1.4M12.2 12.9l1.4-1.4"/>
+                  <path d="M4 20l7-7 3 3-7 7z"/>
+                </svg>
+              </span>
+              <span class="text">算算TA在干什么</span>
+            </button>
+          </div>
         </section>
 
         <!-- 右侧信息与控制侧面板 -->
@@ -340,33 +360,14 @@ onUnmounted(() => {
               更多功能
             </h2>
             <div class="button-grid">
-              <button class="action-btn ai-btn" @click="openAiModal">
+              <button class="action-btn directory-btn" @click="scrollToDirectory">
                 <span class="icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9C27B0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M15 4V2M15 16v-2M8 9h2M20 9h-2M17.8 5.1l-1.4 1.4M17.8 12.9l-1.4-1.4M12.2 5.1l1.4 1.4M12.2 12.9l1.4-1.4"/>
-                    <path d="M4 20l7-7 3 3-7 7z"/>
-                  </svg>
-                </span>
-                <span class="text">AI 行为推理</span>
-              </button>
-              <button class="action-btn directory-btn">
-                <span class="icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#FF9800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                   </svg>
                 </span>
                 <span class="text">动物图鉴</span>
-              </button>
-              <button class="action-btn alert-btn">
-                <span class="icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#F44336" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                  </svg>
-                </span>
-                <span class="text">异常预警</span>
               </button>
             </div>
           </section>
@@ -758,9 +759,63 @@ body, html {
   font-size: 0.95rem;
 }
 
-.ai-btn:hover { border-bottom: 4px solid #9C27B0; }
 .directory-btn:hover { border-bottom: 4px solid #FF9800; }
-.alert-btn:hover { border-bottom: 4px solid #F44336; }
+
+/* 算算TA在干什么 按钮样式 */
+.map-actions-bottom {
+  margin-top: 1.2rem;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.ai-calc-btn {
+  background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+  color: white !important;
+  border: none;
+  border-radius: 18px;
+  padding: 1.1rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(156, 39, 176, 0.35);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-family: inherit;
+}
+
+.ai-calc-btn:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(156, 39, 176, 0.45);
+}
+
+.ai-calc-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.ai-calc-btn .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-calc-btn .text {
+  font-weight: 800;
+  color: white !important;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 480px) {
+  .ai-calc-btn {
+    width: 100%;
+    padding: 1rem 1.5rem;
+  }
+  .ai-calc-btn .text {
+    font-size: 1rem;
+  }
+}
 
 /* 统计看板小卡片 */
 .stat-card {
