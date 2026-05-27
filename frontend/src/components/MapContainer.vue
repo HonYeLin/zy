@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, toRef } from 'vue';
 import axios from 'axios';
+
+const props = withDefaults(defineProps<{
+  activeTrackAnimalId?: number | null
+}>(), {
+  activeTrackAnimalId: null
+});
+
+const activeTrackAnimalId = toRef(props, 'activeTrackAnimalId');
 
 const center = ref([116.397428, 39.90923]); 
 const zoom = ref(16);
@@ -9,14 +17,14 @@ const animalLogs = ref<any[]>([]);
 const userLocation = ref<[number, number] | null>(null); // 用户当前定位位置
 const tempMarker = ref<{ lng: number, lat: number } | null>(null); // 用户点击地图生成的临时标记
 
-const emit = defineEmits(['select-animal']);
+const emit = defineEmits(['select-animal', 'update:activeTrackAnimalId']);
 
 const handleMarkerClick = (animal: any) => {
   if (animal) {
-    if (activeTrackAnimalId.value === animal.id) {
-      activeTrackAnimalId.value = null; // 再次点击该标识图标，恢复初始默认状态
+    if (props.activeTrackAnimalId === animal.id) {
+      emit('update:activeTrackAnimalId', null); // 再次点击该标识图标，恢复初始默认状态
     } else {
-      activeTrackAnimalId.value = animal.id; // 点击选择该图标，只保留同一标识图标且只显示该图标
+      emit('update:activeTrackAnimalId', animal.id); // 点击选择该图标，只保留同一标识图标且只显示该图标
     }
     emit('select-animal', animal);
   }
@@ -330,7 +338,6 @@ const handleMapClick = (e: any) => {
 };
 
 // --- 轨迹与连线相关状态和计算属性 ---
-const activeTrackAnimalId = ref<number | null>(null);
 
 // 过滤后的足迹：若开启了轨迹追踪，则只显示该动物的足迹；否则显示全部
 const filteredLogs = computed(() => {

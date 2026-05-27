@@ -10,7 +10,7 @@ Target Server Type    : MYSQL
 Target Server Version : 80040
 File Encoding         : 65001
 
-Date: 2026-05-27 17:07:22
+Date: 2026-05-28 02:48:14
 */
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -45,18 +45,18 @@ CREATE TABLE `animals` (
   `breed` varchar(50) DEFAULT NULL COMMENT '品种/特征描述',
   `qr_code_id` varchar(100) DEFAULT NULL COMMENT '对应线下扫描二维码的唯一标识',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '档案建立时间',
+  `description` varchar(500) DEFAULT NULL,
+  `avatar_url` varchar(255) DEFAULT NULL,
+  `ai_summary` text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `qr_code_id` (`qr_code_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------
 -- Records of animals
 -- ----------------------------
-INSERT INTO `animals` VALUES ('1', '大橘', 'Cat', null, '2026-05-27 02:18:03');
-INSERT INTO `animals` VALUES ('2', 'M01', 'Cat', null, '2026-05-27 02:19:20');
-INSERT INTO `animals` VALUES ('3', 'D01', 'Dog', null, '2026-05-27 02:31:43');
-INSERT INTO `animals` VALUES ('4', 'D02', 'Dog', null, '2026-05-27 02:32:00');
-INSERT INTO `animals` VALUES ('5', 'D01', 'Cat', null, '2026-05-27 02:32:22');
+INSERT INTO `animals` VALUES ('9', '大橙', 'Cat', 'Cat-9', '2026-05-27 22:33:12', '橙色短毛，全身均匀橙色，耳朵完整，眼睛微眯，胡须清晰', 'http://localhost:8080/images/Cat-10_20260527_223414.jpg', '大橙是一只全身橙黄、总是眯着眼、胡须倍儿精神的小猫。作为校级睡眠艺术家，TA最爱在深夜的校园角落呼呼大睡，主打一个随遇而安。只要有地儿躺就是TA的专属休息室，真是将“大橘为重”贯彻到底的慵懒小胖。');
+INSERT INTO `animals` VALUES ('11', '三花', 'Cat', 'Cat-11', '2026-05-28 01:16:44', '白底黑棕相间毛发，头部有黑色斑块，耳朵完整，尾巴卷曲', 'http://localhost:8080/images/Cat-11/Cat-11_20260528_011644.jpg', null);
 
 -- ----------------------------
 -- Table structure for `animal_life_narratives`
@@ -75,11 +75,14 @@ CREATE TABLE `animal_life_narratives` (
   PRIMARY KEY (`id`),
   KEY `idx_animal_time` (`animal_id`,`start_time`,`end_time`),
   CONSTRAINT `animal_life_narratives_ibfk_1` FOREIGN KEY (`animal_id`) REFERENCES `animals` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------
 -- Records of animal_life_narratives
 -- ----------------------------
+INSERT INTO `animal_life_narratives` VALUES ('2', '9', '大橙现在正趴在路灯下的石椅上打盹呢，它微微眯着眼，胡须偶尔抖动一下。傍晚那会儿它还在食堂门口熟练地讨要小鱼干，现在估计是吃饱喝足，在这儿吹着晚风做着关于罐头的美梦吧。', '2026-05-27 20:33:13', '2026-05-27 20:33:13', 'DAILY', 'gemini-flash-latest', '0', '2026-05-27 22:33:21');
+INSERT INTO `animal_life_narratives` VALUES ('3', '9', '夜深人静的大橙正蜷缩在暖和的廊道角落里睡觉，粉红的小鼻头随着呼吸微微颤动。看它舒展的胡须和放松的姿态，大概是傍晚巡视完领地又和学生们讨到了不少零食，累了一整天，此刻正做着满是小鱼干的美梦呢。', '2026-05-27 22:34:14', '2026-05-27 22:34:14', 'DAILY', 'gemini-flash-latest', '0', '2026-05-27 22:34:21');
+INSERT INTO `animal_life_narratives` VALUES ('4', '11', '夜深了，有着黑斑小脑瓜和卷曲尾巴的三花正缩成一团甜甜地睡着，作为校园新面孔，它白天可能在灌木丛里巡视了很久，现在终于能放下防备，在安静的深夜里枕着满天星光做个关于小鱼干的美梦啦。', '2026-05-27 23:16:44', '2026-05-27 23:16:44', 'DAILY', 'gemini-flash-latest', '0', '2026-05-28 01:16:50');
 
 -- ----------------------------
 -- Table structure for `animal_logs`
@@ -99,16 +102,14 @@ CREATE TABLE `animal_logs` (
   SPATIAL KEY `location` (`location`),
   KEY `animal_id` (`animal_id`),
   CONSTRAINT `animal_logs_ibfk_1` FOREIGN KEY (`animal_id`) REFERENCES `animals` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------
 -- Records of animal_logs
 -- ----------------------------
-INSERT INTO `animal_logs` VALUES ('1', '2', null, 0xE610000001010000003579CA6ABADC5D40C55565DF15013A40, 'EATING', '', '大', '2026-05-27 02:19:21', '2026-05-27 02:19:20');
-INSERT INTO `animal_logs` VALUES ('2', '3', null, 0xE61000000101000000D940BAD8B4DC5D40DFDFA0BDFA003A40, 'SLEEPING', '', '黄', '2026-05-27 02:31:43', '2026-05-27 02:31:43');
-INSERT INTO `animal_logs` VALUES ('3', '4', null, 0xE61000000101000000E542E55FCBDC5D40A702EE79FE003A40, 'EATING', '', '黄', '2026-05-27 02:32:00', '2026-05-27 02:32:00');
-INSERT INTO `animal_logs` VALUES ('4', '5', null, 0xE61000000101000000077AA86DC3DC5D4059F78F85E8003A40, 'EATING', '', '黄', '2026-05-27 02:32:23', '2026-05-27 02:32:22');
-INSERT INTO `animal_logs` VALUES ('5', '3', null, 0xE61000000101000000FE7BF0DAA5DC5D40F17EDC7EF9003A40, 'EATING', '', '黄', '2026-05-27 02:32:36', '2026-05-27 02:32:35');
+INSERT INTO `animal_logs` VALUES ('7', '9', null, 0xE610000001010000006BBA9EE8BADC5D40DDB1D82615013A40, 'SLEEPING', 'http://localhost:8080/images/Cat-9_20260527_223312.jpg', '橙色短毛，全身均匀橙色，耳朵完整，眼睛微眯，胡须清晰', '2026-05-27 20:33:13', '2026-05-27 22:33:12');
+INSERT INTO `animal_logs` VALUES ('8', '9', null, 0xE610000001010000006FF59CF4BEDC5D40E695EB6D33013A40, 'SLEEPING', 'http://localhost:8080/images/Cat-10_20260527_223414.jpg', '橙色毛发，面部有深色斑纹，耳朵完整，胡须细长，鼻头粉红。', '2026-05-27 22:34:14', '2026-05-27 22:34:14');
+INSERT INTO `animal_logs` VALUES ('9', '11', null, 0xE61000000101000000FBCBEEC9C3DC5D406A6803B001013A40, 'SLEEPING', 'http://localhost:8080/images/Cat-11/Cat-11_20260528_011644.jpg', '白底黑棕相间毛发，头部有黑色斑块，耳朵完整，尾巴卷曲', '2026-05-27 23:16:44', '2026-05-28 01:16:44');
 
 -- ----------------------------
 -- Table structure for `prediction_feedbacks`
@@ -122,9 +123,9 @@ CREATE TABLE `prediction_feedbacks` (
   `predicted_behavior` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `recorded_at` datetime(6) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------
 -- Records of prediction_feedbacks
 -- ----------------------------
-INSERT INTO `prediction_feedbacks` VALUES ('1', '睡觉/休息', '5', 'CONFIRMED', '睡觉/休息', '2026-05-27 16:26:36.271101');
+INSERT INTO `prediction_feedbacks` VALUES ('2', '睡觉/休息', '9', 'CONFIRMED', '睡觉/休息', '2026-05-27 23:43:06.053176');

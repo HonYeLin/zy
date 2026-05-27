@@ -245,6 +245,19 @@ const showTrajectoryModal = ref(false);
 const trajectoryAnimal = ref<Animal | null>(null);
 const trajectoryLogs = ref<any[]>([]);
 const isTrajectoryLoading = ref(false);
+const activeTrackAnimalId = ref<number | null>(null);
+
+const handleDirectoryCardClick = (animal: Animal) => {
+  if (activeTrackAnimalId.value !== animal.id) {
+    // 第一次点击：进入和选中地图中图标一样的选中状态，并高亮显示选中该图鉴框
+    activeTrackAnimalId.value = animal.id;
+    selectedAnimalId.value = animal.id; // 让生活日记等也同步切换
+    triggerToast(`已定位并追踪: ${animal.name}`);
+  } else {
+    // 再次点击：才打开生存足迹与轨迹页面
+    openTrajectoryModal(animal);
+  }
+};
 
 const openTrajectoryModal = async (animal: Animal) => {
   trajectoryAnimal.value = animal;
@@ -362,7 +375,11 @@ onUnmounted(() => {
             附近足迹
           </h2>
           <div class="map-box">
-            <MapContainer @select-animal="handleSelectAnimal" />
+            <MapContainer 
+              :active-track-animal-id="activeTrackAnimalId" 
+              @update:active-track-animal-id="activeTrackAnimalId = $event" 
+              @select-animal="handleSelectAnimal" 
+            />
           </div>
           <!-- 算算TA在干什么 按钮 -->
           <div class="map-actions-bottom">
@@ -487,7 +504,13 @@ onUnmounted(() => {
           🐾 暂无保存的动物实体，在地图上录入足迹后自动建档图鉴！
         </div>
         <div v-else class="directory-grid">
-          <div v-for="animal in animals" :key="animal.id" class="directory-card" @click="openTrajectoryModal(animal)">
+          <div 
+            v-for="animal in animals" 
+            :key="animal.id" 
+            class="directory-card" 
+            :class="{ 'is-active-tracking': activeTrackAnimalId === animal.id }"
+            @click="handleDirectoryCardClick(animal)"
+          >
             <!-- Left-top corner nickname -->
             <div class="card-nickname">{{ animal.name }}</div>
             
@@ -1574,6 +1597,14 @@ body, html {
   box-shadow: 0 12px 25px rgba(0,0,0,0.06);
   border-color: rgba(129, 199, 132, 0.4);
   background: #ffffff;
+}
+
+.directory-card.is-active-tracking {
+  border-color: #81C784;
+  border-width: 2px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(129, 199, 132, 0.15);
+  transform: translateY(-3px);
 }
 
 .card-nickname {
