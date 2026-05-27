@@ -672,7 +672,6 @@ body, html {
 
 .app-main {
   flex: 1;
-  max-width: 1400px; /* 扩大最大宽度以消除宽屏两侧过多空白 */
   width: 100%;
   margin: 0 auto;
   padding: 2rem 1.5rem;
