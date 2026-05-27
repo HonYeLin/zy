@@ -201,7 +201,7 @@ public class LocationLogService {
                     narrative.setStartTime(allLogs.get(allLogs.size() - 1).getRecordedAt()); // 最早的时间
                     narrative.setEndTime(allLogs.get(0).getRecordedAt()); // 最新的时间
                     narrative.setSummaryType("DAILY");
-                    narrative.setModelVersion("gemini-1.5-pro-latest");
+                    narrative.setModelVersion("gemini-1.5-pro");
                     narrative.setTokenUsage(0);
                     
                     animalLifeNarrativeRepository.save(narrative);
