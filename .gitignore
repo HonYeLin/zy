@@ -1,0 +1,23 @@
+# IDE Configs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build and Temp files
+backend/target/
+frontend/dist/
+frontend/node_modules/
+node_modules/
+dist/
+target/
+*.log
+.system_generated/
+.gemini/
+
+# System files
+.DS_Store
+Thumbs.db
