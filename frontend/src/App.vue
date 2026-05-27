@@ -224,6 +224,47 @@ watch(selectedAnimalId, (newId) => {
   }
 });
 
+// Trajectory Modal State
+const showTrajectoryModal = ref(false);
+const trajectoryAnimal = ref<Animal | null>(null);
+const trajectoryLogs = ref<any[]>([]);
+const isTrajectoryLoading = ref(false);
+
+const openTrajectoryModal = async (animal: Animal) => {
+  trajectoryAnimal.value = animal;
+  showTrajectoryModal.value = true;
+  isTrajectoryLoading.value = true;
+  trajectoryLogs.value = [];
+  try {
+    const res = await axios.get(`http://localhost:8080/api/locations/animal/${animal.id}`);
+    trajectoryLogs.value = res.data;
+  } catch (error) {
+    console.error('获取小动物轨迹失败:', error);
+  } finally {
+    isTrajectoryLoading.value = false;
+  }
+};
+
+const closeTrajectoryModal = () => {
+  showTrajectoryModal.value = false;
+  trajectoryAnimal.value = null;
+  trajectoryLogs.value = [];
+};
+
+const formatLogTime = (timeStr: string) => {
+  if (!timeStr) return '';
+  try {
+    const d = new Date(timeStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  } catch (e) {
+    return timeStr;
+  }
+};
+
+const handlePhotoError = (e: any) => {
+  e.target.style.display = 'none';
+};
+
 let statsIntervalId: any = null;
 
 onMounted(() => {
@@ -376,6 +417,65 @@ onUnmounted(() => {
           </section>
         </div>
       </div>
+
+      <!-- 下方动物图鉴分隔栏 -->
+      <section class="directory-section-bottom">
+        <h2 class="section-title">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+          </svg>
+          动物图鉴
+        </h2>
+        
+        <div v-if="animals.length === 0" class="directory-empty-msg">
+          🐾 暂无保存的动物实体，在地图上录入足迹后自动建档图鉴！
+        </div>
+        <div v-else class="directory-grid">
+          <div v-for="animal in animals" :key="animal.id" class="directory-card" @click="openTrajectoryModal(animal)">
+            <!-- Left-top corner nickname -->
+            <div class="card-nickname">{{ animal.name }}</div>
+            
+            <!-- Right-top corner breed icon -->
+            <div class="card-breed-badge" :class="animal.breed.toLowerCase()">
+              <svg v-if="animal.breed === 'Cat'" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <circle cx="7.5" cy="9.5" r="2" />
+                <circle cx="12" cy="6.5" r="2.5" />
+                <circle cx="16.5" cy="9.5" r="2" />
+                <path d="M12 11c-1.8 0-3.5 1.5-3.5 3.3 0 1.8 1.5 3.2 3.5 3.2s3.5-1.4 3.5-3.2c0-1.8-1.7-3.3-3.5-3.3z"/>
+              </svg>
+              <svg v-else-if="animal.breed === 'Dog'" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15c-.8 0-1.5-.7-1.5-1.5S9.2 14 10 14s1.5.7 1.5 1.5-.7 1.5-1.5 1.5zm4 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/>
+              </svg>
+              <span v-else>🐾</span>
+            </div>
+            
+            <!-- Center placeholder / photo -->
+            <div class="card-media">
+              <div class="media-placeholder">
+                <svg v-if="animal.breed === 'Cat'" viewBox="0 0 24 24" width="48" height="48" fill="#A5D6A7">
+                  <circle cx="7.5" cy="9.5" r="2" />
+                  <circle cx="12" cy="6.5" r="2.5" />
+                  <circle cx="16.5" cy="9.5" r="2" />
+                  <path d="M12 11c-1.8 0-3.5 1.5-3.5 3.3 0 1.8 1.5 3.2 3.5 3.2s3.5-1.4 3.5-3.2c0-1.8-1.7-3.3-3.5-3.3z"/>
+                </svg>
+                <svg v-else-if="animal.breed === 'Dog'" viewBox="0 0 24 24" width="48" height="48" fill="#FFCC80">
+                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15c-.8 0-1.5-.7-1.5-1.5S9.2 14 10 14s1.5.7 1.5 1.5-.7 1.5-1.5 1.5zm4 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" width="48" height="48" fill="#B0BEC5">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+                <span class="media-placeholder-txt">图片占位</span>
+              </div>
+            </div>
+            
+            <!-- Bottom breed text -->
+            <div class="card-footer">
+              <span class="card-breed-name">{{ getBreedLabel(animal.breed) }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- AI 行为推理 Modal (毛玻璃毛刷视觉) -->
@@ -437,6 +537,62 @@ onUnmounted(() => {
             </div>
           </div>
         </footer>
+      </div>
+    </div>
+
+    <!-- 行为轨迹 Modal -->
+    <div v-if="showTrajectoryModal" class="modal-overlay" @click.self="closeTrajectoryModal">
+      <div class="modal-card trajectory-modal">
+        <header class="modal-header">
+          <div class="modal-title">
+            <span>🐾</span> {{ trajectoryAnimal?.name }} 的生存足迹与轨迹
+          </div>
+          <button class="close-modal-btn" @click="closeTrajectoryModal">×</button>
+        </header>
+        
+        <div class="modal-body trajectory-body">
+          <div v-if="isTrajectoryLoading" class="trajectory-loading">
+            <span class="spinner"></span>
+            <p>正在读取足迹轨迹数据...</p>
+          </div>
+          <div v-else-if="trajectoryLogs.length === 0" class="trajectory-empty">
+            <p>暂无足迹轨迹记录。在地图上为它新增一条记录吧！🐾</p>
+          </div>
+          <div v-else class="timeline-container">
+            <div class="timeline-summary">
+              累计观测到 <strong>{{ trajectoryLogs.length }}</strong> 次活动足迹
+            </div>
+            
+            <div class="timeline">
+              <div v-for="log in trajectoryLogs" :key="log.id" class="timeline-item">
+                <div class="timeline-badge" :class="log.behaviorTag.toLowerCase()">
+                  <span class="badge-icon">
+                    <svg v-if="log.behaviorTag === 'EATING'" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                      <path d="M8.1 14.1l-2.5-2.5-1.4 1.4 3.9 3.9 8.1-8.1-1.4-1.4z"/>
+                    </svg>
+                    <svg v-else-if="log.behaviorTag === 'SLEEPING'" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                    </svg>
+                    <span v-else>●</span>
+                  </span>
+                </div>
+                
+                <div class="timeline-content">
+                  <div class="timeline-time">{{ formatLogTime(log.recordedAt) }}</div>
+                  <div class="timeline-behavior">
+                    <span class="behavior-label-tag" :class="log.behaviorTag.toLowerCase()">{{ log.behaviorLabel }}</span>
+                  </div>
+                  <div class="timeline-desc">{{ log.description || '未标记特征描述' }}</div>
+                  
+                  <!-- If a photo is uploaded, show it -->
+                  <div v-if="log.photoUrl" class="timeline-photo">
+                    <img :src="log.photoUrl" alt="现场照片" @error="handlePhotoError" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1110,5 +1266,281 @@ body, html {
     padding: 1.2rem 1.8rem;
     gap: 1.2rem;
   }
+}
+
+/* 动物图鉴分隔栏 Bottom Section Styles */
+.directory-section-bottom {
+  margin-top: 3rem;
+  background-color: #ffffff;
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+  border: 1px solid rgba(0,0,0,0.01);
+}
+
+.directory-empty-msg {
+  text-align: center;
+  padding: 30px 0;
+  color: #78909C;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.directory-card {
+  background: #F9FBF9;
+  border: 1px solid rgba(0,0,0,0.04);
+  border-radius: 18px;
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.01);
+}
+
+.directory-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.06);
+  border-color: rgba(129, 199, 132, 0.4);
+  background: #ffffff;
+}
+
+.card-nickname {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #2E7D32;
+}
+
+.card-breed-badge {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.card-breed-badge.cat {
+  background-color: #E8F5E9;
+  color: #4CAF50;
+}
+
+.card-breed-badge.dog {
+  background-color: #FFF3E0;
+  color: #FF9800;
+}
+
+.card-breed-badge.other {
+  background-color: #ECEFF1;
+  color: #607D8B;
+}
+
+.card-media {
+  margin-top: 2.5rem;
+  margin-bottom: 0.8rem;
+  width: 100%;
+  height: 110px;
+  background: #E8F5E9;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px dashed rgba(0,0,0,0.05);
+}
+
+.directory-card:hover .card-media {
+  background: #F1F8E9;
+  border-color: rgba(129, 199, 132, 0.2);
+}
+
+.media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.media-placeholder-txt {
+  font-size: 0.72rem;
+  color: #78909C;
+  font-weight: 700;
+}
+
+.card-footer {
+  width: 100%;
+  text-align: center;
+  border-top: 1px solid rgba(0,0,0,0.04);
+  padding-top: 10px;
+  margin-top: auto;
+}
+
+.card-breed-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #90A4AE;
+}
+
+/* 行为轨迹 Modal Styles */
+.trajectory-modal {
+  max-width: 650px !important;
+}
+
+.trajectory-body {
+  max-height: 70vh !important;
+}
+
+.trajectory-loading, .trajectory-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  gap: 12px;
+  color: #78909C;
+  font-weight: 700;
+}
+
+.timeline-container {
+  margin-top: 10px;
+}
+
+.timeline-summary {
+  font-size: 0.92rem;
+  color: #455A64;
+  font-weight: 700;
+  margin-bottom: 24px;
+  border-bottom: 1px dashed rgba(0,0,0,0.06);
+  padding-bottom: 12px;
+}
+
+.timeline-summary strong {
+  color: #2E7D32;
+  font-size: 1.1rem;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  padding-left: 24px;
+  border-left: 2px solid #E8F5E9;
+  margin-left: 12px;
+}
+
+.timeline-item {
+  position: relative;
+}
+
+.timeline-badge {
+  position: absolute;
+  left: -33px;
+  top: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #90A4AE;
+  border: 3px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.timeline-badge.eating { background-color: #FF9800; }
+.timeline-badge.sleeping { background-color: #2196F3; }
+.timeline-badge.playing { background-color: #9C27B0; }
+.timeline-badge.sunbathing { background-color: #FFC107; }
+.timeline-badge.walking { background-color: #009688; }
+.timeline-badge.other { background-color: #607D8B; }
+
+.badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.timeline-content {
+  background-color: #F8FBF7;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(0,0,0,0.02);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.01);
+  transition: all 0.2s;
+}
+
+.timeline-content:hover {
+  transform: translateX(3px);
+  background-color: #ffffff;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.03);
+  border-color: rgba(129, 199, 132, 0.2);
+}
+
+.timeline-time {
+  font-size: 0.78rem;
+  color: #90A4AE;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.timeline-behavior {
+  margin: 6px 0;
+}
+
+.behavior-label-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 50px;
+  color: white;
+  display: inline-block;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.behavior-label-tag.eating { background: #FF9800; }
+.behavior-label-tag.sleeping { background: #2196F3; }
+.behavior-label-tag.playing { background: #9C27B0; }
+.behavior-label-tag.sunbathing { background: #FFC107; }
+.behavior-label-tag.walking { background: #009688; }
+.behavior-label-tag.other { background: #607D8B; }
+
+.timeline-desc {
+  font-size: 0.9rem;
+  color: #37474F;
+  margin-top: 6px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.timeline-photo {
+  margin-top: 12px;
+  max-width: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid white;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.timeline-photo img {
+  width: 100%;
+  display: block;
 }
 </style>

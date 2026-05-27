@@ -20,7 +20,7 @@ public class GeminiProvider implements IAIProvider {
 
     @Override
     public String reasonBehavior(String context) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
 
         // 构建 Prompt
         String prompt = "你是一位动物行为学专家。基于以下轨迹序列，推测该动物在当前时间最可能在做什么？请简要说明逻辑并给出一个状态标签（如：睡觉、吃饭、玩耍、巡视领地等）。\n\n历史轨迹序列：\n" + context;
@@ -71,7 +71,7 @@ public class GeminiProvider implements IAIProvider {
             return "OTHER";
         }
         
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
 
         String prompt = "你是一个动物行为分类器。根据下面提供的小动物特征或当前状态描述，将其分类到以下6个预定义状态标签中的一个。只能返回这6个单词之一（EATING, SLEEPING, PLAYING, SUNBATHING, WALKING, OTHER），不要返回任何其他内容、标点符号或解释说明。\\n\\n描述内容：" + description;
 
