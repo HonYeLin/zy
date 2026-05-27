@@ -259,6 +259,11 @@ const handleDirectoryCardClick = (animal: Animal) => {
   }
 };
 
+const closeDiary = () => {
+  selectedAnimalId.value = null;
+  activeTrackAnimalId.value = null;
+};
+
 const openTrajectoryModal = async (animal: Animal) => {
   trajectoryAnimal.value = animal;
   showTrajectoryModal.value = true;
@@ -457,8 +462,11 @@ onUnmounted(() => {
       <Transition name="fade-slide">
         <div v-if="selectedAnimal" class="diary-container full-width-diary">
           <div class="diary-card-title">
-            <span class="paw-icon">🐾</span>
-            {{ selectedAnimal.name }} 的生活日记
+            <div class="diary-title-left">
+              <span class="paw-icon">🐾</span>
+              {{ selectedAnimal.name }} 的生活日记
+            </div>
+            <button class="close-diary-btn" @click="closeDiary" title="收起日记并清除选择">×</button>
           </div>
           
           <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
@@ -1120,7 +1128,37 @@ body, html {
   margin-bottom: 10px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.diary-title-left {
+  display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.close-diary-btn {
+  background: none;
+  border: none;
+  color: #8fa38f;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+.close-diary-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #558B2F;
+  transform: rotate(90deg);
 }
 
 .diary-paper {
