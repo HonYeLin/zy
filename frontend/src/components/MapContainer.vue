@@ -13,6 +13,11 @@ const emit = defineEmits(['select-animal']);
 
 const handleMarkerClick = (animal: any) => {
   if (animal) {
+    if (activeTrackAnimalId.value === animal.id) {
+      activeTrackAnimalId.value = null; // 再次点击该标识图标，恢复初始默认状态
+    } else {
+      activeTrackAnimalId.value = animal.id; // 点击选择该图标，只保留同一标识图标且只显示该图标
+    }
     emit('select-animal', animal);
   }
 };
@@ -323,21 +328,73 @@ const handleMapClick = (e: any) => {
   tempMarker.value = { lng, lat };
   currentLocation.value = { lng, lat };
 };
+
+// --- 轨迹与连线相关状态和计算属性 ---
+const activeTrackAnimalId = ref<number | null>(null);
+
+// 过滤后的足迹：若开启了轨迹追踪，则只显示该动物的足迹；否则显示全部
+const filteredLogs = computed(() => {
+  if (activeTrackAnimalId.value === null) {
+    return animalLogs.value;
+  }
+  return animalLogs.value.filter(log => log.animal?.id === activeTrackAnimalId.value);
+});
+
+// 按时间正序排列的选中动物足迹列表
+const trackedLogsSorted = computed(() => {
+  if (activeTrackAnimalId.value === null) return [];
+  return animalLogs.value
+    .filter(log => log.animal?.id === activeTrackAnimalId.value)
+    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+});
+
+// 获取某条记录在轨迹中的序号（从1开始）
+const getLogIndex = (logId: number) => {
+  const index = trackedLogsSorted.value.findIndex(log => log.id === logId);
+  return index !== -1 ? index + 1 : '';
+};
+
+// 轨迹折线的坐标序列
+const trajectoryPath = computed(() => {
+  return trackedLogsSorted.value.map(log => [log.longitude, log.latitude]);
+});
+
+// 轨迹折线颜色（与选中动物匹配）
+const trajectoryLineColor = computed(() => {
+  if (activeTrackAnimalId.value === null) return '#81C784';
+  const firstLog = trackedLogsSorted.value[0];
+  return getAnimalColor(firstLog?.animal);
+});
 </script>
 
 <template>
   <div class="map-wrapper">
     <div class="map-container">
       <el-amap :center="center" :zoom="zoom" @init="initMap" @click="handleMapClick" :show-label="false">
+        <!-- 轨迹连线 (带方向箭头) -->
+        <el-amap-polyline
+          v-if="activeTrackAnimalId !== null && trajectoryPath.length > 1"
+          :path="trajectoryPath"
+          :showDir="true"
+          :strokeWeight="6"
+          :strokeColor="trajectoryLineColor"
+          :lineJoin="'round'"
+          :lineCap="'round'"
+        />
+
         <el-amap-marker
-          v-for="log in animalLogs"
+          v-for="log in filteredLogs"
           :key="log.id"
           :position="[log.longitude, log.latitude]"
           :offset="[-20, -20]"
           :title="`${log.animal?.name || '未知小动物'} (${log.behaviorTag || '活动'}): ${log.description || '无特征描述'}`"
           @click="handleMarkerClick(log.animal)"
         >
-          <div class="custom-marker" :class="log.animal?.breed?.toLowerCase()" :style="{ borderColor: getAnimalColor(log.animal), color: getAnimalColor(log.animal) }">
+          <div class="custom-marker" :class="[log.animal?.breed?.toLowerCase(), { 'is-tracked': activeTrackAnimalId !== null }]" :style="{ borderColor: getAnimalColor(log.animal), color: getAnimalColor(log.animal) }">
+            <!-- 时间排序序号徽章 -->
+            <div v-if="activeTrackAnimalId !== null" class="marker-index-badge" :style="{ backgroundColor: getAnimalColor(log.animal) }">
+              {{ getLogIndex(log.id) }}
+            </div>
             <template v-if="log.animal?.breed === 'Cat'">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 5c.67 0 1.35.09 2 .26L18.5 2 17 6.5c2.3 1.9 3.5 4.7 3 7.5-.7 4-4 7-8 7s-7.3-3-8-7c-.5-2.8.7-5.6 3-7.5L5.5 2 10 5.26c.65-.17 1.33-.26 2-.26z" />
@@ -721,6 +778,7 @@ const handleMapClick = (e: any) => {
 
 /* 自定义图标样式 */
 .custom-marker {
+  position: relative;
   background-color: rgba(255, 255, 255, 0.95);
   border: 2px solid #81C784;
   border-radius: 50%;
@@ -734,6 +792,37 @@ const handleMapClick = (e: any) => {
   transform-origin: bottom center;
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s, color 0.3s;
   color: #81C784;
+}
+
+/* 时间排序轨迹序号徽章 */
+.marker-index-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  border: 1.5px solid white;
+  z-index: 10;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .custom-marker.cat {
