@@ -88,11 +88,17 @@ public class LocationLogService {
             List<Animal> existingAnimals = animalRepository.findByNameAndBreed(animalName, type);
             if (!existingAnimals.isEmpty()) {
                 animal = existingAnimals.get(0);
+                if (animal.getQrCodeId() == null || animal.getQrCodeId().isEmpty()) {
+                    animal.setQrCodeId(animal.getBreed() + "-" + animal.getId());
+                    animal = animalRepository.save(animal);
+                }
             } else {
                 animal = new Animal();
                 animal.setName(animalName);
                 animal.setBreed(type);
-                animal = animalRepository.save(animal);
+                animal = animalRepository.save(animal); // Save once to generate the ID
+                animal.setQrCodeId(animal.getBreed() + "-" + animal.getId());
+                animal = animalRepository.save(animal); // Save again with the generated qr_code_id
             }
         }
 

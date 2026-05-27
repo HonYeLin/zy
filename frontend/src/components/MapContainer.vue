@@ -28,7 +28,6 @@ const formType = ref('Cat'); // 'Cat' | 'Dog' | 'Other'
 const formNickname = ref('');
 const formFeatures = ref('');
 const formBehaviorTag = ref(''); // '' | 'EATING' | 'SLEEPING' | 'PLAYING' | 'SUNBATHING' | 'WALKING' | 'OTHER'
-const formQrCodeId = ref('');
 const formTimeOffset = ref(0); // minutes offset: 0, 10, 30, 60, 120
 const formPhotoUrl = ref('');
 const isSubmitting = ref(false);
@@ -142,7 +141,6 @@ const openModal = () => {
   formNickname.value = '';
   formFeatures.value = '';
   formBehaviorTag.value = '';
-  formQrCodeId.value = '';
   formTimeOffset.value = 0;
   formPhotoUrl.value = '';
 };
@@ -168,7 +166,7 @@ const submitMarker = async () => {
       longitude: currentLocation.value.lng,
       latitude: currentLocation.value.lat,
       behaviorTag: formBehaviorTag.value,
-      qrCodeId: formQrCodeId.value.trim(),
+      qrCodeId: '',
       timeOffset: formTimeOffset.value,
       photoUrl: formPhotoUrl.value.trim()
     });
@@ -459,19 +457,14 @@ const handleMapClick = (e: any) => {
             <!-- 附加选填信息 -->
             <div class="input-label-tag">选填附加信息</div>
             
-            <div class="form-row-2">
-              <div class="input-group">
-                <select v-model="formTimeOffset" class="elegant-input elegant-select">
-                  <option :value="0">发现时间：刚才</option>
-                  <option :value="10">发现时间：10分钟前</option>
-                  <option :value="30">发现时间：半小时前</option>
-                  <option :value="60">发现时间：1小时前</option>
-                  <option :value="120">发现时间：2小时前</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <input type="text" v-model="formQrCodeId" placeholder="挂牌二维码ID (选填)" class="elegant-input" />
-              </div>
+            <div class="input-group">
+              <select v-model="formTimeOffset" class="elegant-input elegant-select">
+                <option :value="0">发现时间：刚才</option>
+                <option :value="10">发现时间：10分钟前</option>
+                <option :value="30">发现时间：半小时前</option>
+                <option :value="60">发现时间：1小时前</option>
+                <option :value="120">发现时间：2小时前</option>
+              </select>
             </div>
 
             <div class="input-group">
@@ -653,15 +646,49 @@ const handleMapClick = (e: any) => {
 
 .glass-card {
   position: relative;
-  width: 90%;
-  max-width: 400px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
+  width: 92%;
+  max-width: 420px;
+  max-height: 90vh;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 24px;
-  padding: 2rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+  padding: 1.8rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-bottom: 0.8rem;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.modal-footer {
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .close-btn {
@@ -1023,6 +1050,24 @@ const handleMapClick = (e: any) => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .glass-card {
+    padding: 1.2rem;
+    border-radius: 20px;
+    width: 95%;
+  }
+  .modal-header h3 {
+    font-size: 1.3rem;
+  }
+  .type-btn-content {
+    padding: 10px 0;
+    font-size: 0.85rem;
+  }
+  .behavior-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
