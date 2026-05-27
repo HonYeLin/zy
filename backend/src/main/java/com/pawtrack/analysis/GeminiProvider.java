@@ -22,8 +22,25 @@ public class GeminiProvider implements IAIProvider {
     public String reasonBehavior(String context) {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
 
-        // 构建 Prompt
-        String prompt = "你是一位动物行为学专家。基于以下轨迹序列，推测该动物在当前时间最可能在做什么？请简要说明逻辑并给出一个状态标签（如：睡觉、吃饭、玩耍、巡视领地等）。\n\n历史轨迹序列：\n" + context;
+        String prompt;
+        if (context.startsWith("你是一个") || context.startsWith("你是一位")) {
+            prompt = context;
+        } else {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            String clickTime = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String dayOfWeek = now.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.CHINA);
+
+            prompt = "你是一位幽默而灵敏的校园流浪动物行为学分析专家。\n" +
+                    "当前用户发起推测的系统时间为：" + clickTime + "（" + dayOfWeek + "）。\n\n" +
+                    "基于以下该小动物的历史轨迹数据，分析小动物在以往类似时间段的行为规律，并推测它“现在”最可能在做什么：\n" +
+                    context + "\n" +
+                    "【推测任务要求】：\n" +
+                    "1. 绝对不要输出任何推理过程、分析逻辑、前言、思考步骤、分点说明或 Markdown 标签（如 #, *, - 等）。\n" +
+                    "2. 最终输出的文本必须**仅包含结论**，格式需要采用“最近行为总结 + 现在相同时间行为推测 + 微微的滑稽调侃”的流畅一句话口语段落。\n" +
+                    "   - 参考范例：\"它最近这会这个时间都在晒太阳，去它喜欢躺的草坪找找看吧，真是只大懒猫。\"\n" +
+                    "   - 参考范例：\"这个点历史记录里它通常已经在食堂门口蹲守小鱼干了，现在估计又在对路过的学生疯狂眨眼讨零食呢，真是个不折不扣的校园吃货。\"\n" +
+                    "3. 请直接输出推测结论本身，控制在40-90字之间。";
+        }
 
         // 构建请求体 (符合 Gemini API 的 JSON 结构)
         Map<String, Object> requestBody = Map.of(

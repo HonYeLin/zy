@@ -349,42 +349,6 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- 生活日记 (Life Diary) - 独占一横栏 -->
-          <div v-if="selectedAnimal" class="diary-container full-width-diary">
-            <div class="diary-card-title">
-              <span class="paw-icon">🐾</span>
-              {{ selectedAnimal.name }} 的生活日记
-            </div>
-            
-            <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
-              <div class="diary-pin"></div>
-              <div class="diary-content-area">
-                <div v-if="isNarrativeLoading" class="diary-loading">
-                  <span class="loading-dot"></span>
-                  <span class="loading-dot"></span>
-                  <span class="loading-dot"></span>
-                  <p>正在翻阅日记本...</p>
-                </div>
-                <div v-else>
-                  <div class="diary-records-list">
-                    <div v-for="(record, idx) in lifeRecords" :key="idx" class="diary-record-item">
-                      <div class="diary-record-header">
-                        <span class="record-time">📅 {{ record.time }}</span>
-                        <span class="record-bullet">🐾</span>
-                      </div>
-                      <span class="record-text">{{ record.content }}</span>
-                    </div>
-                    <div v-if="lifeRecords.length === 0" class="diary-text-empty">
-                      这只小家伙还没有生活记录喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写有趣的生活日记啦！🐾
-                    </div>
-                  </div>
-                  <div class="diary-footer">
-                    <span>✍️ 校园小生命分析师 Gemini</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </section>
 
         <!-- 右侧信息与控制侧面板 -->
@@ -441,6 +405,43 @@ onUnmounted(() => {
               <p>直接点击地图上的任意空白位置，可在该处悬浮生成一个绿色的临时标记，再次点击绿色标记便能快捷录入新的发现记录。点击右下悬浮爪印，可实现自动定位记录！</p>
             </div>
           </section>
+        </div>
+      </div>
+
+      <!-- 生活日记 (Life Diary) - 放置在分栏下方，真正全屏独占一横栏 -->
+      <div v-if="selectedAnimal" class="diary-container full-width-diary">
+        <div class="diary-card-title">
+          <span class="paw-icon">🐾</span>
+          {{ selectedAnimal.name }} 的生活日记
+        </div>
+        
+        <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
+          <div class="diary-pin"></div>
+          <div class="diary-content-area">
+            <div v-if="isNarrativeLoading" class="diary-loading">
+              <span class="loading-dot"></span>
+              <span class="loading-dot"></span>
+              <span class="loading-dot"></span>
+              <p>正在翻阅日记本...</p>
+            </div>
+            <div v-else>
+              <div class="diary-records-list">
+                <div v-for="(record, idx) in lifeRecords" :key="idx" class="diary-record-item">
+                  <div class="diary-record-header">
+                    <span class="record-time">📅 {{ record.time }}</span>
+                    <span class="record-bullet">🐾</span>
+                  </div>
+                  <span class="record-text">{{ record.content }}</span>
+                </div>
+                <div v-if="lifeRecords.length === 0" class="diary-text-empty">
+                  这只小家伙还没有生活记录喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写有趣的生活日记啦！🐾
+                </div>
+              </div>
+              <div class="diary-footer">
+                <span>✍️ 校园小生命分析师 Gemini</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1184,22 +1185,27 @@ body, html {
 }
 
 .reasoning-box {
-  background: rgba(255,255,255,0.95);
+  background: rgba(255, 253, 240, 0.95); /* Warm cream yellow */
   border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(0,0,0,0.04);
-  min-height: 120px;
+  padding: 24px;
+  border: 1px solid rgba(255, 235, 59, 0.15);
+  min-height: 90px;
   position: relative;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.01), 0 4px 12px rgba(255, 235, 59, 0.04);
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reasoning-text {
-  line-height: 1.7;
-  font-size: 0.95rem;
-  color: #37474F;
+  line-height: 1.8;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #3E2723; /* Pencil dark brown */
   margin: 0;
   white-space: pre-wrap;
+  text-align: center;
 }
 
 .reasoning-loading {
