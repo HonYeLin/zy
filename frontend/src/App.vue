@@ -691,7 +691,7 @@ body, html {
   border-left: 1px solid rgba(255, 255, 255, 0.12);
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   color: white;
-  padding: 1.8rem 2.5rem;
+  padding: 2.5rem 2.5rem 1.8rem; /* Increased top padding from 1.8rem to 2.5rem */
   display: flex;
   align-items: center;
   justify-content: center;
