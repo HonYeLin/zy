@@ -291,6 +291,25 @@ onUnmounted(() => {
   }
 });
 
+const animalColors = [
+  '#FF8A65', // coral
+  '#4DB6AC', // teal
+  '#7986CB', // indigo
+  '#AED581', // light green
+  '#FFD54F', // amber
+  '#BA68C8', // purple
+  '#4FC3F7', // light blue
+  '#D4E157', // lime
+  '#F06292', // pink
+  '#A1887F', // light brown
+];
+
+const getAnimalColor = (animal: any) => {
+  if (!animal || !animal.id) return '#81C784';
+  const index = animal.id % animalColors.length;
+  return animalColors[index];
+};
+
 // 点击地图空白处，先在地图上生成绿色临时标记，再次点击该标记才会打开表单
 const handleMapClick = (e: any) => {
   const { lng, lat } = e.lnglat;
@@ -311,7 +330,7 @@ const handleMapClick = (e: any) => {
           :title="`${log.animal?.name || '未知小动物'} (${log.behaviorTag || '活动'}): ${log.description || '无特征描述'}`"
           @click="handleMarkerClick(log.animal)"
         >
-          <div class="custom-marker" :class="log.animal?.breed?.toLowerCase()">
+          <div class="custom-marker" :class="log.animal?.breed?.toLowerCase()" :style="{ borderColor: getAnimalColor(log.animal), color: getAnimalColor(log.animal) }">
             <template v-if="log.animal?.breed === 'Cat'">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 5c.67 0 1.35.09 2 .26L18.5 2 17 6.5c2.3 1.9 3.5 4.7 3 7.5-.7 4-4 7-8 7s-7.3-3-8-7c-.5-2.8.7-5.6 3-7.5L5.5 2 10 5.26c.65-.17 1.33-.26 2-.26z" />
@@ -1141,18 +1160,23 @@ const handleMapClick = (e: any) => {
 /* 临时定位绿色标记点脉冲与气泡样式 */
 .temp-marker-container {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
 }
 
 .temp-marker-pulse {
+  width: 32px;
+  height: 32px;
   animation: bounce-marker 1s infinite alternate cubic-bezier(0.25, 0.46, 0.45, 0.94);
   filter: drop-shadow(0 4px 6px rgba(46, 125, 50, 0.3));
 }
 
 .temp-marker-tooltip {
+  position: absolute;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
   white-space: nowrap;
   background: rgba(46, 125, 50, 0.95);
   color: white;
@@ -1160,11 +1184,9 @@ const handleMapClick = (e: any) => {
   border-radius: 20px;
   font-size: 0.72rem;
   font-weight: 700;
-  margin-top: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   border: 1.5px solid rgba(255, 255, 255, 0.25);
   animation: temp-fade-in 0.3s ease-out;
-  position: relative;
 }
 
 .temp-marker-tooltip::after {
@@ -1190,11 +1212,11 @@ const handleMapClick = (e: any) => {
 @keyframes temp-fade-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateX(-50%) translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
   }
 }
 
