@@ -454,41 +454,43 @@ onUnmounted(() => {
       </div>
 
       <!-- 生活日记 (Life Diary) - 放置在分栏下方，真正全屏独占一横栏 -->
-      <div v-if="selectedAnimal" class="diary-container full-width-diary">
-        <div class="diary-card-title">
-          <span class="paw-icon">🐾</span>
-          {{ selectedAnimal.name }} 的生活日记
-        </div>
-        
-        <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
-          <div class="diary-pin"></div>
-          <div class="diary-content-area">
-            <div v-if="isNarrativeLoading" class="diary-loading">
-              <span class="loading-dot"></span>
-              <span class="loading-dot"></span>
-              <span class="loading-dot"></span>
-              <p>正在翻阅日记本...</p>
-            </div>
-            <div v-else>
-              <div class="diary-records-list">
-                <div v-for="(record, idx) in lifeRecords" :key="idx" class="diary-record-item">
-                  <div class="diary-record-header">
-                    <span class="record-time">📅 {{ record.time }}</span>
-                    <span class="record-bullet">🐾</span>
-                  </div>
-                  <span class="record-text">{{ record.content }}</span>
-                </div>
-                <div v-if="lifeRecords.length === 0" class="diary-text-empty">
-                  这只小家伙还没有生活记录喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写有趣的生活日记啦！🐾
-                </div>
+      <Transition name="fade-slide">
+        <div v-if="selectedAnimal" class="diary-container full-width-diary">
+          <div class="diary-card-title">
+            <span class="paw-icon">🐾</span>
+            {{ selectedAnimal.name }} 的生活日记
+          </div>
+          
+          <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
+            <div class="diary-pin"></div>
+            <div class="diary-content-area">
+              <div v-if="isNarrativeLoading" class="diary-loading">
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <p>正在翻阅日记本...</p>
               </div>
-              <div class="diary-footer">
-                <span>✍️ 校园小生命分析师 Gemini</span>
+              <div v-else>
+                <div class="diary-records-list">
+                  <div v-for="(record, idx) in lifeRecords" :key="idx" class="diary-record-item">
+                    <div class="diary-record-header">
+                      <span class="record-time">📅 {{ record.time }}</span>
+                      <span class="record-bullet">🐾</span>
+                    </div>
+                    <span class="record-text">{{ record.content }}</span>
+                  </div>
+                  <div v-if="lifeRecords.length === 0" class="diary-text-empty">
+                    这只小家伙还没有生活记录喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写有趣的生活日记啦！🐾
+                  </div>
+                </div>
+                <div class="diary-footer">
+                  <span>✍️ 校园小生命分析师 Gemini</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </Transition>
 
       <!-- 下方动物图鉴分隔栏 -->
       <section class="directory-section-bottom">
@@ -1012,6 +1014,18 @@ body, html {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
   perspective: 1000px;
+}
+
+/* 生活日记平滑过渡动画 (渐显+滑入+3D折叠翻页) */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(40px) scale(0.97) rotateX(3deg);
 }
 
 .full-width-diary {
