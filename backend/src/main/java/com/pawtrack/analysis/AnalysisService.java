@@ -109,12 +109,17 @@ public class AnalysisService {
     /**
      * 获取动物全部的生活叙事记录 (按时间升序)
      */
-    public List<String> getAllNarratives(Long animalId) {
+    public List<java.util.Map<String, Object>> getAllNarratives(Long animalId) {
         List<AnimalLifeNarrative> narratives = animalLifeNarrativeRepository.findByAnimalIdOrderByStartTimeDesc(animalId);
-        List<String> list = new ArrayList<>();
+        List<java.util.Map<String, Object>> list = new ArrayList<>();
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm");
         if (narratives != null && !narratives.isEmpty()) {
             for (int i = narratives.size() - 1; i >= 0; i--) {
-                list.add(narratives.get(i).getNarrativeContent());
+                AnimalLifeNarrative n = narratives.get(i);
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("content", n.getNarrativeContent());
+                map.put("time", n.getEndTime() != null ? n.getEndTime().format(formatter) : "未知时间");
+                list.add(map);
             }
         }
         return list;

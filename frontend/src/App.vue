@@ -9,13 +9,14 @@ interface Animal {
   name: string;
   breed: string;
   qrCodeId?: string;
+  avatarUrl?: string;
   createdAt?: string;
 }
 
 // Global Stats & Animals list
 const animals = ref<Animal[]>([]);
 const selectedAnimalId = ref<number | null>(null);
-const latestNarrative = ref<string>('');
+const lifeRecords = ref<any[]>([]);
 const isNarrativeLoading = ref(false);
 const totalAnimalsCount = ref(0);
 const totalFootprintsCount = ref(0);
@@ -68,10 +69,10 @@ const fetchAnimals = async () => {
     animals.value = res.data;
     totalAnimalsCount.value = res.data.length;
     
-    // Default select first animal if not selected
-    if (res.data.length > 0 && !selectedAnimalId.value) {
-      selectedAnimalId.value = res.data[0].id;
-    }
+    // 默认不自动选中任何动物，保持生活日记默认隐藏
+    // if (res.data.length > 0 && !selectedAnimalId.value) {
+    //   selectedAnimalId.value = res.data[0].id;
+    // }
   } catch (error) {
     console.error('获取动物列表失败:', error);
   }
@@ -90,13 +91,12 @@ const fetchLogsCount = async () => {
 // Fetch animal diary
 const fetchNarrative = async (animalId: number) => {
   isNarrativeLoading.value = true;
-  latestNarrative.value = '';
+  lifeRecords.value = [];
   try {
     const res = await axios.get(`http://localhost:8080/api/analysis/narrative/${animalId}`);
-    latestNarrative.value = res.data.narrative;
+    lifeRecords.value = res.data.narratives || [];
   } catch (error) {
     console.error('获取日记失败:', error);
-    latestNarrative.value = '翻阅日记失败，请稍后重试🐾';
   } finally {
     isNarrativeLoading.value = false;
   }
@@ -228,7 +228,7 @@ watch(selectedAnimalId, (newId) => {
   if (newId) {
     fetchNarrative(newId);
   } else {
-    latestNarrative.value = '';
+    lifeRecords.value = [];
   }
 });
 
@@ -349,11 +349,11 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- 成长日记 (Life Narrative) 便签卡片 -->
-          <div v-if="selectedAnimal" class="diary-container">
+          <!-- 生活日记 (Life Diary) - 独占一横栏 -->
+          <div v-if="selectedAnimal" class="diary-container full-width-diary">
             <div class="diary-card-title">
               <span class="paw-icon">🐾</span>
-              {{ selectedAnimal.name }} 的成长日记
+              {{ selectedAnimal.name }} 的生活日记
             </div>
             
             <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
@@ -366,7 +366,18 @@ onUnmounted(() => {
                   <p>正在翻阅日记本...</p>
                 </div>
                 <div v-else>
-                  <p class="diary-text">{{ latestNarrative || '这只小家伙还没有成长日记喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写生动幽默的生活故事啦！🐾' }}</p>
+                  <div class="diary-records-list">
+                    <div v-for="(record, idx) in lifeRecords" :key="idx" class="diary-record-item">
+                      <div class="diary-record-header">
+                        <span class="record-time">📅 {{ record.time }}</span>
+                        <span class="record-bullet">🐾</span>
+                      </div>
+                      <span class="record-text">{{ record.content }}</span>
+                    </div>
+                    <div v-if="lifeRecords.length === 0" class="diary-text-empty">
+                      这只小家伙还没有生活记录喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写有趣的生活日记啦！🐾
+                    </div>
+                  </div>
                   <div class="diary-footer">
                     <span>✍️ 校园小生命分析师 Gemini</span>
                   </div>
@@ -468,11 +479,11 @@ onUnmounted(() => {
             <!-- Center placeholder / photo -->
             <div class="card-media">
               <img 
-                :src="`http://localhost:8080/images/${animal.name}_avatar.png`" 
+                :src="animal.avatarUrl || `http://localhost:8080/images/${animal.name}_avatar.png`" 
                 @error="handleImageLoadError($event, animal)"
                 class="card-img" 
-                :alt="`昵称头像：static/images/${animal.name}_avatar.png`"
-                :title="`在后端 static/images 文件夹下放入口碑昵称图片 ${animal.name}_avatar.png 即可自动呈现！🐾`"
+                :alt="`头像：${animal.name}`"
+                :title="animal.avatarUrl ? `${animal.name}的实物代表性头像 🐾` : `在后端 static/images 文件夹下放入口碑昵称图片 ${animal.name}_avatar.png 即可自动呈现！🐾`"
               />
             </div>
             
@@ -874,11 +885,80 @@ body, html {
   line-height: 1.6;
 }
 
-/* 成长日记 (Growth Diary) 便签风格 UI Styles */
+/* 生活日记 (Life Diary) 便签风格 UI Styles */
 .diary-container {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
   perspective: 1000px;
+}
+
+.full-width-diary {
+  width: 100%;
+}
+
+.diary-records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diary-record-item {
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: #3E2723; /* Pencil dark brown */
+  margin: 0;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+  border-left: 3px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.diary-record-item:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateX(2px);
+}
+
+.diary-record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+.diary-record-item .record-time {
+  font-size: 0.78rem;
+  color: #795548; /* Warm handwriting pencil tone */
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.diary-record-item .record-bullet {
+  font-size: 0.85rem;
+  color: #81C784;
+}
+
+.diary-record-item .record-text {
+  flex: 1;
+  letter-spacing: 0.3px;
+}
+
+.diary-text-empty {
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #795548;
+  text-align: center;
+  padding: 20px 0;
 }
 
 .diary-card-title {

@@ -17,12 +17,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
             baseDir = new File(baseDir, "backend");
         }
         
-        File uploadDir = new File(baseDir, "src/main/resources/static/images/unclassified");
+        File uploadDir = new File(baseDir, "src/main/resources/static/images");
         if (!uploadDir.exists()) {
             uploadDir.mkdirs();
         }
 
-        registry.addResourceHandler("/images/unclassified/**")
+        registry.addResourceHandler("/images/**")
                 .addResourceLocations("file:" + uploadDir.getAbsolutePath() + "/");
     }
 }

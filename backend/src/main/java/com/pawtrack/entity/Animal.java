@@ -28,6 +28,9 @@ public class Animal {
     @Column(name = "qr_code_id", unique = true, length = 100)
     private String qrCodeId; // 对应线下扫描二维码的唯一标识
 
+    @Column(name = "avatar_url", length = 255)
+    private String avatarUrl; // AI 自动选择的代表性头像照片
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt; // 档案建立时间
 }

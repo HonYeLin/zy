@@ -22,8 +22,14 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpEntity;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +42,11 @@ public class LocationLogService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Value("${ai.dashscope.api-key}")
+    private String dashscopeApiKey;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Transactional
     public LocationLog saveLog(LocationLogCreateRequest request) {
@@ -75,25 +86,37 @@ public class LocationLogService {
                 animal = animalRepository.save(animal);
             }
         } else {
-            // 如果未提供二维码，读取该种类的所有动物，用 Gemini 判断是否为已有实体
-            List<Animal> sameBreedAnimals = animalRepository.findByBreed(type);
-            Long matchedId = aiProvider.matchExistingAnimal(type, features, sameBreedAnimals);
+            // 如果未提供二维码
+            // A. 首先检查用户是否提供了明确的昵称，且该昵称和种类在数据库中已经存在（尊重用户的手动选择）
+            if (nickname != null && !nickname.trim().isEmpty()) {
+                List<Animal> exactMatches = animalRepository.findByNameAndBreed(nickname.trim(), type);
+                if (!exactMatches.isEmpty()) {
+                    animal = exactMatches.get(0);
+                    System.out.println("====== 精确匹配到已有名称的实体: ID=" + animal.getId() + ", 昵称=" + animal.getName() + " ======");
+                }
+            }
             
-            if (matchedId != null) {
-                java.util.Optional<Animal> matchedAnimal = animalRepository.findById(matchedId);
-                if (matchedAnimal.isPresent()) {
-                    animal = matchedAnimal.get();
-                    System.out.println("====== Gemini 成功识别为已有实体: ID=" + matchedId + ", 昵称=" + animal.getName() + " ======");
-                    // 如果原本没有昵称或者用户指定了新名字，则更新昵称
-                    if (nickname != null && !nickname.isEmpty() && !animal.getName().equals(nickname)) {
-                        animal.setName(nickname);
-                        animal = animalRepository.save(animal);
+            // B. 如果精确匹配没有找到实体，我们才进行 Gemini AI 特征识别比对
+            if (animal == null) {
+                List<Animal> sameBreedAnimals = animalRepository.findByBreed(type);
+                Long matchedId = aiProvider.matchExistingAnimal(type, features, sameBreedAnimals);
+                
+                if (matchedId != null) {
+                    java.util.Optional<Animal> matchedAnimal = animalRepository.findById(matchedId);
+                    if (matchedAnimal.isPresent()) {
+                        animal = matchedAnimal.get();
+                        System.out.println("====== Gemini 成功识别为已有实体: ID=" + matchedId + ", 昵称=" + animal.getName() + " ======");
+                        // 如果原本没有昵称或者用户指定了新名字，且该名字不为空，更新昵称
+                        if (nickname != null && !nickname.isEmpty() && !animal.getName().equals(nickname)) {
+                            animal.setName(nickname);
+                            animal = animalRepository.save(animal);
+                        }
                     }
                 }
             }
             
+            // C. 如果依然没有匹配到任何实体，则新建一个
             if (animal == null) {
-                // 如果没有匹配到已有实体，则新建一个
                 animal = new Animal();
                 String animalName = (nickname == null || nickname.isEmpty()) ? ("未知" + ("Cat".equalsIgnoreCase(type) ? "猫猫" : ("Dog".equalsIgnoreCase(type) ? "狗子" : "小动物"))) : nickname;
                 animal.setName(animalName);
@@ -147,7 +170,7 @@ public class LocationLogService {
             recordedAt = recordedAt.minusMinutes(offset);
         }
 
-        // 3.5. 处理照片重命名与转移 (将临时照片重命名为 唯一标识id+上传时间 并移至正式照片目录)
+        // 3.5. 处理照片重命名与转移 (将临时照片重命名为 唯一标识id+上传时间 并移至正式照片目录分类文件夹中)
         String finalPhotoUrl = request.getPhotoUrl();
         if (finalPhotoUrl != null && finalPhotoUrl.contains("/images/unclassified/")) {
             try {
@@ -176,8 +199,9 @@ public class LocationLogService {
                     // 唯一标识结构为 "种类-该实体唯一ID"
                     String targetFilename = animal.getQrCodeId() + "_" + timestamp + ext;
                     
-                    File sourceDestFile = new File(baseDir, "src/main/resources/static/images/" + targetFilename);
-                    File targetDestFile = new File(baseDir, "target/classes/static/images/" + targetFilename);
+                    // 照片分类文件夹管理，一个唯一ID一个文件夹
+                    File sourceDestFile = new File(baseDir, "src/main/resources/static/images/" + animal.getQrCodeId() + "/" + targetFilename);
+                    File targetDestFile = new File(baseDir, "target/classes/static/images/" + animal.getQrCodeId() + "/" + targetFilename);
                     
                     // 确保目标父文件夹存在
                     if (!sourceDestFile.getParentFile().exists()) {
@@ -195,7 +219,7 @@ public class LocationLogService {
                     java.nio.file.Files.deleteIfExists(sourceTempFile.toPath());
                     java.nio.file.Files.deleteIfExists(targetTempFile.toPath());
                     
-                    finalPhotoUrl = "http://localhost:8080/images/" + targetFilename;
+                    finalPhotoUrl = "http://localhost:8080/images/" + animal.getQrCodeId() + "/" + targetFilename;
                 }
             } catch (Exception e) {
                 System.err.println("照片转移及重命名失败: " + e.getMessage());
@@ -232,6 +256,15 @@ public class LocationLogService {
 
         // 6. 异步后台生成 AI 生活记录日记，免去对主线程的 IO 阻塞
         generateNarrativeAsync(animal.getId(), animal.getBreed());
+
+        // 异步后台触发 AI 头像自动甄选
+        if (finalPhotoUrl != null && !finalPhotoUrl.trim().isEmpty() && !finalPhotoUrl.contains("/images/unclassified/")) {
+            final String photoUrlForAvatar = finalPhotoUrl;
+            final Animal animalForAvatar = animal;
+            CompletableFuture.runAsync(() -> {
+                evaluateAndSelectAvatar(animalForAvatar, photoUrlForAvatar);
+            });
+        }
 
         return log;
     }
@@ -340,5 +373,152 @@ public class LocationLogService {
 
     public List<LocationLog> findAllLogs() {
         return locationLogRepository.findAll();
+    }
+
+    /**
+     * 自动使用 AI 挑选具有代表性的动物头像照片，如果当前头像不存在直接绑定，如果存在则利用 Qwen-VL-Max 进行两图对比并异步更新
+     */
+    public void evaluateAndSelectAvatar(Animal animal, String newPhotoUrl) {
+        try {
+            // 1. 如果当前没有头像，则直接设置新照片为头像
+            if (animal.getAvatarUrl() == null || animal.getAvatarUrl().trim().isEmpty()) {
+                animal.setAvatarUrl(newPhotoUrl);
+                animalRepository.save(animal);
+                System.out.println("====== AI头像初始化: " + animal.getName() + " 直接绑定第一张照片为头像: " + newPhotoUrl + " ======");
+                return;
+            }
+
+            String currentAvatarUrl = animal.getAvatarUrl();
+            if (currentAvatarUrl.equals(newPhotoUrl)) {
+                return; // 已经是同一张图，无需比对
+            }
+
+            // 2. 加载两张图的本地文件
+            File currentFile = getLocalFileFromUrl(currentAvatarUrl);
+            File newFile = getLocalFileFromUrl(newPhotoUrl);
+
+            if (currentFile == null || !currentFile.exists()) {
+                // 如果当前头像文件不存在，直接更新为新照片
+                animal.setAvatarUrl(newPhotoUrl);
+                animalRepository.save(animal);
+                System.out.println("====== AI头像更新: 当前头像文件不存在，直接绑定新照片为头像 ======");
+                return;
+            }
+
+            if (newFile == null || !newFile.exists()) {
+                return; // 新文件不存在，无法比对
+            }
+
+            // 3. 将两张图转换为 Base64
+            byte[] currentBytes = java.nio.file.Files.readAllBytes(currentFile.toPath());
+            byte[] newBytes = java.nio.file.Files.readAllBytes(newFile.toPath());
+
+            String currentMime = getMimeType(currentFile.getName());
+            String newMime = getMimeType(newFile.getName());
+
+            String currentDataUri = "data:" + currentMime + ";base64," + Base64.getEncoder().encodeToString(currentBytes);
+            String newDataUri = "data:" + newMime + ";base64," + Base64.getEncoder().encodeToString(newBytes);
+
+            // 4. 调用 Qwen-VL-Max 进行对比
+            String url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+
+            String promptText = "你是一个精密的动物照片评估助手。下面是同一只校园动物的两张照片：\n" +
+                    "图片A (当前头像)\n" +
+                    "图片B (新观察照片)\n" +
+                    "请选择最适合作为该小动物在图鉴/卡片上显示的“代表性头像”的照片。\n" +
+                    "挑选标准：\n" +
+                    "1. 头像应该清晰，能清楚看清该动物的面部特征、五官或整体轮廓。\n" +
+                    "2. 尽量选择正面、没有遮挡、没有严重运动模糊、光线良好的照片。\n" +
+                    "3. 避免过度拉伸、裁剪不当或主体过小的照片。\n\n" +
+                    "如果你认为图片B（新照片）明显比图片A更适合、更清晰、更具代表性，请回复字母 \"B\"。\n" +
+                    "如果你认为图片A更好，或者两张照片差不多（没有显著提升），请回复字母 \"A\"。\n\n" +
+                    "注意：请【仅】输出单个大写字母 \"A\" 或 \"B\"，不要包含任何解释、前缀、标点符号或Markdown格式。";
+
+            Map<String, Object> textPart = Map.of(
+                "type", "text",
+                "text", promptText
+            );
+
+            Map<String, Object> imagePartA = Map.of(
+                "type", "image_url",
+                "image_url", Map.of("url", currentDataUri)
+            );
+
+            Map<String, Object> imagePartB = Map.of(
+                "type", "image_url",
+                "image_url", Map.of("url", newDataUri)
+            );
+
+            Map<String, Object> message = Map.of(
+                "role", "user",
+                "content", List.of(textPart, imagePartA, imagePartB)
+            );
+
+            Map<String, Object> requestBody = Map.of(
+                "model", "qwen-vl-max",
+                "messages", List.of(message)
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + dashscopeApiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            
+            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+            if (response != null && response.containsKey("choices")) {
+                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+                if (choices != null && !choices.isEmpty()) {
+                    Map<String, Object> msg = (Map<String, Object>) choices.get(0).get("message");
+                    if (msg != null && msg.containsKey("content")) {
+                        String content = (String) msg.get("content");
+                        if (content != null) {
+                            content = content.trim().toUpperCase();
+                            System.out.println("====== Qwen-VL-Max 头像比对结果: " + content + " ======");
+                            if (content.contains("B")) {
+                                animal.setAvatarUrl(newPhotoUrl);
+                                animalRepository.save(animal);
+                                System.out.println("====== AI头像更新: " + animal.getName() + " 更换为更具代表性的新照片: " + newPhotoUrl + " ======");
+                            } else {
+                                System.out.println("====== AI头像保持: " + animal.getName() + " 维持当前头像不变 ======");
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("AI头像自动甄选失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private File getLocalFileFromUrl(String photoUrl) {
+        if (photoUrl == null || !photoUrl.contains("/images/")) {
+            return null;
+        }
+        String relativePath = photoUrl.substring(photoUrl.indexOf("/images/") + "/images/".length());
+        String userDir = System.getProperty("user.dir");
+        File baseDir = new File(userDir);
+        if (!userDir.endsWith("backend")) {
+            baseDir = new File(baseDir, "backend");
+        }
+        File srcFile = new File(baseDir, "src/main/resources/static/images/" + relativePath);
+        if (srcFile.exists()) {
+            return srcFile;
+        }
+        File targetFile = new File(baseDir, "target/classes/static/images/" + relativePath);
+        if (targetFile.exists()) {
+            return targetFile;
+        }
+        return null;
+    }
+
+    private String getMimeType(String filename) {
+        if (filename == null) return "image/jpeg";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        return "image/jpeg";
     }
 }
