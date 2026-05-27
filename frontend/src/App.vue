@@ -872,7 +872,7 @@ body, html {
 
 /* 算算TA在干什么 按钮样式 */
 .map-actions-bottom {
-  margin-top: 1.2rem;
+  margin-top: 3.2rem; /* Increased margin to prevent overlap with the paw button */
   display: flex;
   justify-content: center;
   width: 100%;
