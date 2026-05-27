@@ -7,6 +7,8 @@ import com.pawtrack.entity.FeedbackRequest;
 import com.pawtrack.repository.LocationLogRepository;
 import com.pawtrack.repository.PredictionFeedbackRepository;
 import com.pawtrack.repository.AnimalLifeNarrativeRepository;
+import com.pawtrack.repository.AnimalRepository;
+import com.pawtrack.entity.Animal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +26,30 @@ public class AnalysisService {
     private final LocationLogRepository locationLogRepository;
     private final PredictionFeedbackRepository predictionFeedbackRepository;
     private final AnimalLifeNarrativeRepository animalLifeNarrativeRepository;
+    private final AnimalRepository animalRepository;
+
+    /**
+     * 更新动物的 AI 简介
+     */
+    @Transactional
+    public String updateAnimalSummary(Long animalId) {
+        Animal animal = animalRepository.findById(animalId).orElse(null);
+        if (animal == null) {
+            return "未找到该动物";
+        }
+        List<LocationLog> logs = locationLogRepository.findByAnimalIdOrderByRecordedAtDesc(animalId);
+        String summary = aiProvider.generateAnimalSummary(animal, logs);
+        if (summary != null && !summary.startsWith("一只神秘")) {
+            animal.setAiSummary(summary);
+            animalRepository.save(animal);
+        }
+        return summary;
+    }
 
     /**
      * 根据特定动物的历史记录进行 AI 行为推理，并结合历史纠偏进行 Few-shot 自我微调
      */
-    public String analyzeAnimalBehavior(Long animalId) {
+    public String analyzeAnimalBehavior(Long animalId, String currentTime) {
         // 1. 数据清理：获取该动物最近 7 天内的足迹记录
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         List<LocationLog> recentLogs = locationLogRepository.findByAnimalIdAndRecordedAtAfterOrderByRecordedAtDesc(animalId, sevenDaysAgo);
@@ -74,6 +95,10 @@ public class AnalysisService {
         }
 
         // 拼装最终的 Context (包含偏差学习和行为轨迹)
+        if (currentTime != null && !currentTime.trim().isEmpty()) {
+            contextBuilder.append("\n【用户当前点击发起推测的时间】：").append(currentTime).append("\n");
+        }
+        
         String finalContext = correctionContext.toString() + "历史足迹轨迹：\n" + contextBuilder.toString();
 
         // 4. 调用 AI 接口进行推演

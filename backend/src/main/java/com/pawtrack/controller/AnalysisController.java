@@ -18,9 +18,18 @@ public class AnalysisController {
 
     // 获取 AI 行为预测推演
     @GetMapping("/behavior/{animalId}")
-    public ResponseEntity<Map<String, String>> predictBehavior(@PathVariable Long animalId) {
-        String reasoningResult = analysisService.analyzeAnimalBehavior(animalId);
+    public ResponseEntity<Map<String, String>> predictBehavior(
+            @PathVariable Long animalId,
+            @RequestParam(required = false) String currentTime) {
+        String reasoningResult = analysisService.analyzeAnimalBehavior(animalId, currentTime);
         return ResponseEntity.ok(Map.of("result", reasoningResult));
+    }
+
+    // 手动触发或更新 AI 动物简介
+    @PostMapping("/summary/{animalId}")
+    public ResponseEntity<Map<String, String>> generateSummary(@PathVariable Long animalId) {
+        String summary = analysisService.updateAnimalSummary(animalId);
+        return ResponseEntity.ok(Map.of("summary", summary != null ? summary : ""));
     }
 
     // 提交确认/纠错反馈

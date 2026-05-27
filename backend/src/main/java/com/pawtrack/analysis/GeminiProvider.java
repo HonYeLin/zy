@@ -227,4 +227,60 @@ public class GeminiProvider implements IAIProvider {
         // 发生异常时，简单拼接作为兜底
         return oldFeatures + "；" + newFeatures;
     }
+
+    @Override
+    public String generateAnimalSummary(com.pawtrack.entity.Animal animal, List<com.pawtrack.entity.LocationLog> logs) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一位动物行为观察专家和幽默作家。请根据以下校园流浪小动物的基本信息和历史足迹记录，为它生成一段有趣的简介。\n\n");
+        sb.append("基本信息：\n");
+        sb.append("- 昵称: ").append(animal.getName() != null ? animal.getName() : "未知").append("\n");
+        sb.append("- 特征描述: ").append(animal.getDescription() != null ? animal.getDescription() : "无特征描述").append("\n\n");
+        
+        sb.append("历史足迹记录（近期活动）：\n");
+        if (logs == null || logs.isEmpty()) {
+            sb.append("暂无足迹记录。\n");
+        } else {
+            int limit = Math.min(logs.size(), 20); // 最多参考20条记录
+            for (int i = 0; i < limit; i++) {
+                com.pawtrack.entity.LocationLog log = logs.get(i);
+                sb.append("- 时间: ").append(log.getRecordedAt() != null ? log.getRecordedAt() : "未知")
+                  .append(", 地点: ").append(log.getDescription() != null ? log.getDescription() : "未知")
+                  .append(", 行为状态: ").append(log.getBehaviorLabel() != null ? log.getBehaviorLabel() : "未知")
+                  .append("\n");
+            }
+        }
+
+        sb.append("\n【要求】：\n");
+        sb.append("1. 简介内容需包含：动物外观特征 + 行为习惯 + 常见出没地点 + 微微的幽默评价。\n");
+        sb.append("2. 格式必须流畅生动，直接输出段落内容，**绝对不要**包含任何 Markdown 格式符号（如 #、* 等）。\n");
+        sb.append("3. 参考范例：“TA是一只全是黄色的小猫，喜欢到处乱逛，没事就晒晒太阳，时常在草地上出没，真是只悠闲的咪。”\n");
+        sb.append("4. 字数控制在100字以内。");
+
+        Map<String, Object> requestBody = Map.of(
+            "contents", List.of(
+                Map.of("parts", List.of(
+                    Map.of("text", sb.toString())
+                ))
+            )
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+            String result = extractTextFromResponse(response);
+            if (result != null && !result.trim().isEmpty()) {
+                return result.trim().replaceAll("[#*]", "");
+            }
+        } catch (Exception e) {
+            System.err.println("Gemini 动物简介生成失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return "一只神秘的小动物，还没有人足够了解它呢。";
+    }
 }

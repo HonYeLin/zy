@@ -31,6 +31,9 @@ public class Animal {
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl; // AI 自动选择的代表性头像照片
 
+    @Column(name = "ai_summary", columnDefinition = "TEXT")
+    private String aiSummary; // AI 生成的简介
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt; // 档案建立时间
 }

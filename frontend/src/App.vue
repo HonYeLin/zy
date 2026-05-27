@@ -140,7 +140,14 @@ const fetchBehaviorReasoning = async (animalId: number) => {
   showCorrectionDropdown.value = false;
   selectedCorrectBehavior.value = '';
   try {
-    const res = await axios.get(`http://localhost:8080/api/analysis/behavior/${animalId}`);
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false
+    });
+    const currentTime = formatter.format(now).replace(/\//g, '-');
+    const res = await axios.get(`http://localhost:8080/api/analysis/behavior/${animalId}?currentTime=${encodeURIComponent(currentTime)}`);
     aiReasoningResult.value = res.data.result;
   } catch (error) {
     console.error('AI行为推理失败:', error);
@@ -581,6 +588,9 @@ onUnmounted(() => {
             <div class="timeline-summary">
               累计观测到 <strong>{{ trajectoryLogs.length }}</strong> 次活动足迹
             </div>
+            <div class="animal-ai-summary" v-if="selectedAnimalForTrajectory?.aiSummary">
+              ✨ <strong>AI 观察日志：</strong>{{ selectedAnimalForTrajectory.aiSummary }}
+            </div>
             
             <div class="timeline">
               <div v-for="log in trajectoryLogs" :key="log.id" class="timeline-item">
@@ -627,10 +637,17 @@ onUnmounted(() => {
 body, html {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100%;
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #F6F9F4; /* Very light earthy green */
-  color: #2F4F4F; /* Dark slate gray */
+  background-color: #F6F9F4;
+  /* Premium backdrop-blend background style with custom image support - opacity lowered to 0.40 for clearer background image visibility */
+  background-image: linear-gradient(135deg, rgba(246, 249, 244, 0.40) 0%, rgba(230, 240, 225, 0.40) 100%), url('/images/bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: #2F4F4F;
+  transition: background 0.3s ease;
 }
 
 #app {
@@ -646,40 +663,96 @@ body, html {
 }
 
 .app-header {
-  background-color: #81C784; /* Soft nature green */
+  background: linear-gradient(135deg, rgba(94, 175, 102, 0.95) 0%, rgba(46, 125, 50, 0.95) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
   color: white;
-  padding: 1.5rem 1rem;
+  padding: 1.8rem 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  box-shadow: 0 4px 12px rgba(129, 199, 132, 0.3);
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  gap: 1.5rem;
+  box-shadow: 0 8px 32px rgba(46, 125, 50, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Subtle glowing organic background pattern inside header */
+.app-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
+  pointer-events: none;
+  animation: header-glow-pulse 12s infinite alternate ease-in-out;
+}
+
+@keyframes header-glow-pulse {
+  0% { transform: translate(-5%, -5%) scale(1); }
+  100% { transform: translate(5%, 5%) scale(1.08); }
 }
 
 .app-header .logo {
   font-size: 2.5rem;
-  background: white;
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 50%;
   padding: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), inset 0 2px 4px rgba(255, 255, 255, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.app-header .logo:hover {
+  transform: rotate(15deg) scale(1.1);
+  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3), inset 0 2px 4px rgba(255, 255, 255, 1);
+  background: #ffffff;
+}
+
+.app-header .logo svg {
+  transition: transform 0.4s ease;
+}
+
+.app-header .logo:hover svg {
+  transform: scale(1.08);
+}
+
+.title-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
 }
 
 .title-container h1 {
   margin: 0;
-  font-size: 1.8rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 2.6rem; /* Enlarge title for prominent hierarchy */
+  font-weight: 900; /* Extra heavy weight */
+  letter-spacing: 5px; /* Distinctive spacing */
+  background: linear-gradient(to right, #ffffff 0%, #E8F5E9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
 }
 
 .title-container p {
-  margin: 0.2rem 0 0 0;
-  font-size: 0.95rem;
-  opacity: 0.9;
+  margin: 0.1rem 0 0 0;
+  font-size: 0.92rem; /* Reduce subtitle size to create clear hierarchy contrast */
+  font-weight: 400; /* Normal weight instead of bold */
+  letter-spacing: 1px; /* Tighter letter spacing */
+  color: rgba(255, 255, 255, 0.85); /* Highly readable semi-transparent white */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .app-main {
@@ -741,8 +814,10 @@ body, html {
 }
 
 .action-btn {
-  background: white;
-  border: none;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 16px;
   padding: 1.5rem 1rem;
   display: flex;
@@ -751,7 +826,7 @@ body, html {
   justify-content: center;
   gap: 0.6rem;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -832,13 +907,15 @@ body, html {
 
 /* 统计看板小卡片 */
 .stat-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 1.5rem 1rem;
   display: flex;
   justify-content: space-around;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.01);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .stat-item {
@@ -909,9 +986,25 @@ body, html {
   line-height: 1.6;
   color: #3E2723; /* Pencil dark brown */
   margin: 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.animal-ai-summary {
+  background: rgba(255, 248, 225, 0.7);
+  border-left: 4px solid #FFCA28;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.45);
+  margin: 12px 0 20px 0;
   border-radius: 8px;
+  font-size: 0.95rem;
+  color: #5D4037;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.timeline {
   border-left: 3px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
   display: flex;
@@ -1146,9 +1239,9 @@ body, html {
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px 24px;
+  max-height: 70vh;
   overflow-y: auto;
-  max-height: 60vh;
 }
 
 .animal-selector-row {
@@ -1417,11 +1510,13 @@ body, html {
 /* 动物图鉴分隔栏 Bottom Section Styles */
 .directory-section-bottom {
   margin-top: 3rem;
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 24px;
   padding: 2rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.02);
-  border: 1px solid rgba(0,0,0,0.01);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .directory-empty-msg {

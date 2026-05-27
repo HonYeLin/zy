@@ -306,7 +306,14 @@ const animalColors = [
 
 const getAnimalColor = (animal: any) => {
   if (!animal || !animal.id) return '#81C784';
-  const index = animal.id % animalColors.length;
+  
+  // Use string hash to get a consistent color index
+  const idStr = String(animal.id);
+  let hash = 0;
+  for (let i = 0; i < idStr.length; i++) {
+    hash = idStr.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % animalColors.length;
   return animalColors[index];
 };
 
@@ -326,7 +333,7 @@ const handleMapClick = (e: any) => {
           v-for="log in animalLogs"
           :key="log.id"
           :position="[log.longitude, log.latitude]"
-          :offset="[-18, -18]"
+          :offset="[-20, -20]"
           :title="`${log.animal?.name || '未知小动物'} (${log.behaviorTag || '活动'}): ${log.description || '无特征描述'}`"
           @click="handleMarkerClick(log.animal)"
         >

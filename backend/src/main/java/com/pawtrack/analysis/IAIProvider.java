@@ -31,4 +31,12 @@ public interface IAIProvider {
      * @return 优化后的特征描述
      */
     String optimizeAnimalFeatures(String oldFeatures, String newFeatures);
+
+    /**
+     * 生成动物档案简介
+     * @param animal 动物实体
+     * @param logs 动物的所有足迹记录
+     * @return AI生成的简介
+     */
+    String generateAnimalSummary(com.pawtrack.entity.Animal animal, java.util.List<com.pawtrack.entity.LocationLog> logs);
 }
