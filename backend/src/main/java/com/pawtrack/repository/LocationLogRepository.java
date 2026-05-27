@@ -15,6 +15,10 @@ public interface LocationLogRepository extends JpaRepository<LocationLog, Long> 
     @Query(value = "SELECT * FROM animal_logs l WHERE ST_Distance_Sphere(l.location, ST_GeomFromText(:wkt, 4326)) <= :radius", nativeQuery = true)
     List<LocationLog> findLogsWithinRadius(@Param("wkt") String wkt, @Param("radius") Double radius);
     
+    
     // Find recent logs for an animal
     List<LocationLog> findByAnimalIdOrderByRecordedAtDesc(Long animalId);
+
+    // 获取该动物某个时间点以后的轨迹（如：最近 7 天）
+    List<LocationLog> findByAnimalIdAndRecordedAtAfterOrderByRecordedAtDesc(Long animalId, java.time.LocalDateTime recordedAtAfter);
 }

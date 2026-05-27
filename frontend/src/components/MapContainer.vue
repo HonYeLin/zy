@@ -9,6 +9,14 @@ const animalLogs = ref<any[]>([]);
 const userLocation = ref<[number, number] | null>(null); // 用户当前定位位置
 const tempMarker = ref<{ lng: number, lat: number } | null>(null); // 用户点击地图生成的临时标记
 
+const emit = defineEmits(['select-animal']);
+
+const handleMarkerClick = (animal: any) => {
+  if (animal) {
+    emit('select-animal', animal);
+  }
+};
+
 // Form UI State
 const isLocating = ref(false);
 const isLocatingOnly = ref(false);
@@ -207,6 +215,7 @@ const handleMapClick = (e: any) => {
           :position="[log.longitude, log.latitude]"
           :offset="[-18, -18]"
           :title="`${log.animal?.name || '未知小动物'} (${log.behaviorTag || '活动'}): ${log.description || '无特征描述'}`"
+          @click="handleMarkerClick(log.animal)"
         >
           <div class="custom-marker" :class="log.animal?.breed?.toLowerCase()">
             <template v-if="log.animal?.breed === 'Cat'">

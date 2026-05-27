@@ -4,8 +4,10 @@ import com.pawtrack.entity.Animal;
 import com.pawtrack.entity.BehaviorTag;
 import com.pawtrack.entity.LocationLog;
 import com.pawtrack.entity.LocationLogCreateRequest;
+import com.pawtrack.entity.AnimalLifeNarrative;
 import com.pawtrack.repository.AnimalRepository;
 import com.pawtrack.repository.LocationLogRepository;
+import com.pawtrack.repository.AnimalLifeNarrativeRepository;
 import com.pawtrack.analysis.IAIProvider;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -14,7 +16,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +31,7 @@ public class LocationLogService {
     private final LocationLogRepository locationLogRepository;
     private final AnimalRepository animalRepository;
     private final IAIProvider aiProvider;
+    private final AnimalLifeNarrativeRepository animalLifeNarrativeRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -141,7 +150,68 @@ public class LocationLogService {
         log.setDescription(features);
         log.setPhotoUrl(request.getPhotoUrl());
         log.setRecordedAt(recordedAt);
+
+        // 6. 异步后台生成 AI 生活记录日记，免去对主线程的 IO 阻塞
+        generateNarrativeAsync(animal.getId(), animal.getBreed());
+
         return log;
+    }
+
+    /**
+     * 异步生成 AI 生活记录叙事并保存 (不对主线程造成任何网络请求阻塞)
+     */
+    public void generateNarrativeAsync(Long animalId, String breed) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                // 1. 获取该动物的全部足迹记录 (按时间降序)
+                List<LocationLog> allLogs = locationLogRepository.findByAnimalIdOrderByRecordedAtDesc(animalId);
+                if (allLogs == null || allLogs.isEmpty()) return;
+
+                // 2. 转换成简洁的 JSON 数据结构
+                List<Map<String, Object>> records = new ArrayList<>();
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                
+                // 正序排列数据，构建时间轨迹
+                for (int i = allLogs.size() - 1; i >= 0; i--) {
+                    LocationLog log = allLogs.get(i);
+                    Map<String, Object> record = new HashMap<>();
+                    record.put("time", log.getRecordedAt() != null ? log.getRecordedAt().format(formatter) : "未知时间");
+                    record.put("place", (log.getDescription() != null && !log.getDescription().trim().isEmpty()) ? log.getDescription().trim() : "经纬度(" + log.getLongitude() + "," + log.getLatitude() + ")");
+                    record.put("behavior", log.getBehaviorLabel());
+                    records.add(record);
+                }
+
+                String jsonLogs = new ObjectMapper().writeValueAsString(records);
+
+                // 3. 动态配置 Prompt
+                String role = "Cat".equalsIgnoreCase(breed) ? "猫咪" : ("Dog".equalsIgnoreCase(breed) ? "狗子" : "小生命");
+                String prompt = String.format(
+                    "你是校园%s分析师，请根据以下提供的 JSON 轨迹数据，以该%s的第一人称视角，写一篇幽默、生动、温暖感人、极富趣味的生活日记（字数在150-300字）。请不要输出任何与日记无关的解释性前言或尾注，直接以日记内容输出，可以带有一点可爱的语气词和 Emoji 喔！\n\n轨迹数据 JSON：\n%s",
+                    role, role, jsonLogs
+                );
+
+                // 4. 调用 Gemini 行为学分析引擎生成故事
+                String narrativeText = aiProvider.reasonBehavior(prompt);
+
+                if (narrativeText != null && !narrativeText.trim().isEmpty() && !narrativeText.startsWith("推理失败：")) {
+                    // 5. 数据持久化入库
+                    AnimalLifeNarrative narrative = new AnimalLifeNarrative();
+                    narrative.setAnimalId(animalId);
+                    narrative.setNarrativeContent(narrativeText);
+                    narrative.setStartTime(allLogs.get(allLogs.size() - 1).getRecordedAt()); // 最早的时间
+                    narrative.setEndTime(allLogs.get(0).getRecordedAt()); // 最新的时间
+                    narrative.setSummaryType("DAILY");
+                    narrative.setModelVersion("gemini-1.5-pro-latest");
+                    narrative.setTokenUsage(0);
+                    
+                    animalLifeNarrativeRepository.save(narrative);
+                    System.out.println("====== AI 暖心故事日记已为小动物(ID: " + animalId + ") 异步生成并入库！ ======");
+                }
+            } catch (Exception e) {
+                System.err.println("异步生成 AI 生活记录日记失败: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
 
     public List<LocationLog> findRecentByAnimalId(Long animalId) {
