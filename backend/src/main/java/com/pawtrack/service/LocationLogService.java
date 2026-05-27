@@ -11,6 +11,7 @@ import com.pawtrack.repository.AnimalLifeNarrativeRepository;
 import com.pawtrack.analysis.IAIProvider;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import com.pawtrack.analysis.AnalysisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class LocationLogService {
     private final AnimalRepository animalRepository;
     private final IAIProvider aiProvider;
     private final AnimalLifeNarrativeRepository animalLifeNarrativeRepository;
+    private final AnalysisService analysisService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -256,6 +258,16 @@ public class LocationLogService {
 
         // 6. 异步后台生成 AI 生活记录日记，免去对主线程的 IO 阻塞
         generateNarrativeAsync(animal.getId(), animal.getBreed());
+
+        // 异步后台生成 AI 行为总结简介
+        final Long finalAnimalId = animal.getId();
+        CompletableFuture.runAsync(() -> {
+            try {
+                analysisService.updateAnimalSummary(finalAnimalId);
+            } catch (Exception e) {
+                System.err.println("更新动物 AI 简介失败: " + e.getMessage());
+            }
+        });
 
         // 异步后台触发 AI 头像自动甄选
         if (finalPhotoUrl != null && !finalPhotoUrl.trim().isEmpty() && !finalPhotoUrl.contains("/images/unclassified/")) {

@@ -11,6 +11,7 @@ interface Animal {
   qrCodeId?: string;
   avatarUrl?: string;
   createdAt?: string;
+  aiSummary?: string;
 }
 
 // Global Stats & Animals list
@@ -253,6 +254,26 @@ const openTrajectoryModal = async (animal: Animal) => {
   try {
     const res = await axios.get(`http://localhost:8080/api/locations/animal/${animal.id}`);
     trajectoryLogs.value = res.data;
+    
+    // 如果该小动物还没有 AI 简介（或者之前生成失败），我们在后台异步请求生成一个并更新
+    if (!trajectoryAnimal.value.aiSummary) {
+      axios.post(`http://localhost:8080/api/analysis/summary/${animal.id}`)
+        .then(summaryRes => {
+          if (summaryRes.data && summaryRes.data.summary) {
+            if (trajectoryAnimal.value && trajectoryAnimal.value.id === animal.id) {
+              trajectoryAnimal.value.aiSummary = summaryRes.data.summary;
+            }
+            // 同时更新 animals 列表中的对应数据
+            const idx = animals.value.findIndex(a => a.id === animal.id);
+            if (idx !== -1) {
+              animals.value[idx].aiSummary = summaryRes.data.summary;
+            }
+          }
+        })
+        .catch(err => {
+          console.error('自动生成/更新 AI 简介失败:', err);
+        });
+    }
   } catch (error) {
     console.error('获取小动物轨迹失败:', error);
   } finally {
@@ -588,8 +609,8 @@ onUnmounted(() => {
             <div class="timeline-summary">
               累计观测到 <strong>{{ trajectoryLogs.length }}</strong> 次活动足迹
             </div>
-            <div class="animal-ai-summary" v-if="selectedAnimalForTrajectory?.aiSummary">
-              ✨ <strong>AI 观察日志：</strong>{{ selectedAnimalForTrajectory.aiSummary }}
+            <div class="animal-ai-summary" v-if="trajectoryAnimal?.aiSummary">
+              ✨ <strong>AI 观察日志：</strong>{{ trajectoryAnimal.aiSummary }}
             </div>
             
             <div class="timeline">
