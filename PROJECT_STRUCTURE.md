@@ -18,10 +18,13 @@ f:\AISai
 │  │     │  │  ├─ GeminiProvider.java   # Gemini API 交互实现（使用 gemini-flash-latest）
 │  │     │  │  ├─ IAIProvider.java       # AI 适配接口声明
 │  │     │  │  └─ AnalysisService.java   # 行为推演及 Few-shot 纠偏反馈核心逻辑
+│  │     │  ├─ config/             # Spring MVC 配置层
+│  │     │  │  └─ WebMvcConfig.java      # 静态图片外部映射配置
 │  │     │  ├─ controller/         # API 控制器路由层
 │  │     │  │  ├─ AnimalController.java
 │  │     │  │  ├─ LocationLogController.java
-│  │     │  │  └─ AnalysisController.java # 反馈提交、推理获取、日记获取接口
+│  │     │  │  ├─ AnalysisController.java # 反馈提交、推理获取、日记获取接口
+│  │     │  │  └─ UploadController.java   # 本地拍照图片上传接口
 │  │     │  ├─ entity/             # 数据库实体类 (JPA Entities) 与数据传输对象 (DTOs)
 │  │     │  │  ├─ Animal.java            # 小动物档案实体 (animals 表)
 │  │     │  │  ├─ LocationLog.java       # 足迹空间日志实体 (animal_logs 表)
@@ -92,7 +95,9 @@ f:\AISai
 | `entity/LocationLogCreateRequest.java` | DTO | 新增足迹记录的请求传输对象，封装前端上传的动物种类、昵称、特征描述、经纬度坐标、照片 URL、选定行为标签和时间偏移量。 |
 | `entity/FeedbackRequest.java` | DTO | 纠正/确认 AI 预测行为的反馈请求传输对象，包含动物 ID、预测行为、真实行为及反馈类型。 |
 | `analysis/AnalysisService.java` | 服务 | 负责对特定动物的 7 天轨迹进行分析推断。并提取历史用户纠偏反馈，通过 In-context Few-shot 自我重训对 AI 推导的权重进行修正。 |
+| `config/WebMvcConfig.java` | 配置 | 注册自定义静态资源处理器，将 `/images/unclassified/**` 路径映射至外部磁盘目录，使上传的图片即时可见。 |
 | `controller/AnalysisController.java` | 路由 | 提供 AI 行为预测 `/behavior/{id}`、反馈收集 `/feedback`、成长日记拉取 `/narrative/{id}` 接口。 |
+| `controller/UploadController.java` | 路由 | 提供文件上传接口 `/api/upload`，处理本地拍照及文件图片接收并保存至 `static/images/unclassified`。 |
 | `resources/static/images/` | 文件夹 | **后端实体图片库**，存放默认头像图片。Spring Boot 在 `8080` 端口直接向前端提供静态图片拉取服务，支持自定义特定昵称头像（`大橘_avatar.png`）的物理命名调用。 |
 | `ZY.sql` | 脚本 | MySQL 数据库结构与初始化数据导出脚本，创建 `animals`、`animal_logs`、`ai_predictions`、`prediction_feedbacks` 和 `animal_life_narratives` 等全表结构及记录。 |
 

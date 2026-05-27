@@ -32,6 +32,13 @@ const formTimeOffset = ref(0); // minutes offset: 0, 10, 30, 60, 120
 const formPhotoUrl = ref('');
 const isSubmitting = ref(false);
 
+// Photo upload and nickname select state
+const selectedNicknameOption = ref('');
+const existingAnimalNames = ref<string[]>([]);
+const uploadedPhotoUrl = ref('');
+const isUploadingPhoto = ref(false);
+const cameraInput = ref<HTMLInputElement | null>(null);
+
 const isFormValid = computed(() => {
   return formNickname.value.trim().length > 0 || formFeatures.value.trim().length > 0;
 });
@@ -139,10 +146,70 @@ const openModal = () => {
   showModal.value = true;
   formType.value = 'Cat';
   formNickname.value = '';
+  selectedNicknameOption.value = '';
   formFeatures.value = '';
   formBehaviorTag.value = '';
   formTimeOffset.value = 0;
   formPhotoUrl.value = '';
+  uploadedPhotoUrl.value = '';
+  fetchAnimalsList();
+};
+
+const fetchAnimalsList = async () => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/animals');
+    const names: string[] = res.data.map((a: any) => a.name);
+    existingAnimalNames.value = Array.from(new Set(names.filter(n => n && n.trim().length > 0)));
+  } catch (error) {
+    console.error('获取已有小动物列表失败:', error);
+  }
+};
+
+const handleNicknameSelectChange = () => {
+  if (selectedNicknameOption.value === '__NEW__') {
+    formNickname.value = '';
+  } else {
+    formNickname.value = selectedNicknameOption.value;
+  }
+};
+
+const triggerCamera = () => {
+  if (cameraInput.value) {
+    cameraInput.value.click();
+  }
+};
+
+const handlePhotoCapture = async (event: any) => {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  
+  const file = files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  isUploadingPhoto.value = true;
+  try {
+    const res = await axios.post('http://localhost:8080/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    uploadedPhotoUrl.value = res.data.url;
+    formPhotoUrl.value = res.data.url;
+  } catch (error) {
+    console.error('图片上传失败:', error);
+    alert('照片上传失败，请确保后端服务正常运行。');
+  } finally {
+    isUploadingPhoto.value = false;
+  }
+};
+
+const removeUploadedPhoto = () => {
+  uploadedPhotoUrl.value = '';
+  formPhotoUrl.value = '';
+  if (cameraInput.value) {
+    cameraInput.value.value = '';
+  }
 };
 
 const closeModal = () => {
@@ -379,9 +446,18 @@ const handleMapClick = (e: any) => {
               </label>
             </div>
 
-            <!-- 输入表单 -->
+            <!-- 选择/输入昵称 -->
+            <div class="input-label-tag">选择或新建观测昵称</div>
             <div class="input-group">
-              <input type="text" v-model="formNickname" placeholder="TA的昵称 (选填，如：大橘)" class="elegant-input" />
+              <select v-model="selectedNicknameOption" @change="handleNicknameSelectChange" class="elegant-input elegant-select">
+                <option value="">暂未命名 (系统根据种类自动命名)</option>
+                <option v-for="name in existingAnimalNames" :key="name" :value="name">{{ name }}</option>
+                <option value="__NEW__">➕ 记录新的小生命...</option>
+              </select>
+            </div>
+            
+            <div v-if="selectedNicknameOption === '__NEW__'" class="input-group fade-in-animation">
+              <input type="text" v-model="formNickname" placeholder="请输入新小动物的昵称 (如：花花)" class="elegant-input" />
             </div>
             
             <div class="input-group">
@@ -467,8 +543,48 @@ const handleMapClick = (e: any) => {
               </select>
             </div>
 
-            <div class="input-group">
-              <input type="text" v-model="formPhotoUrl" placeholder="照片链接 URL (选填)" class="elegant-input" />
+            <div class="input-label-tag">现场实拍照 (选填)</div>
+            <div class="photo-capture-container">
+              <input 
+                type="file" 
+                ref="cameraInput" 
+                accept="image/*" 
+                capture="environment" 
+                style="display: none" 
+                @change="handlePhotoCapture" 
+              />
+              
+              <!-- 上传成功后的预览区 -->
+              <div v-if="uploadedPhotoUrl" class="photo-preview-wrapper">
+                <img :src="uploadedPhotoUrl" class="photo-preview-img" alt="现场实拍" />
+                <button type="button" class="photo-delete-btn" @click="removeUploadedPhoto" title="删除照片">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              
+              <!-- 触发按钮 -->
+              <button 
+                v-else 
+                type="button" 
+                class="photo-capture-btn" 
+                :class="{ 'is-uploading': isUploadingPhoto }" 
+                @click="triggerCamera"
+              >
+                <div class="capture-icon">
+                  <svg v-if="isUploadingPhoto" class="upload-spinner" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10" stroke="rgba(0,0,0,0.1)"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#FF9800"></path>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </div>
+                <span class="capture-text">{{ isUploadingPhoto ? '照片上传中...' : '点击拍照 / 上传图片' }}</span>
+              </button>
             </div>
 
             <div class="validation-tip" v-if="!isFormValid">
@@ -1046,6 +1162,113 @@ const handleMapClick = (e: any) => {
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* Photo Capture & Upload UI */
+.photo-capture-container {
+  margin-bottom: 1.2rem;
+  width: 100%;
+}
+
+.photo-capture-btn {
+  width: 100%;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 2px dashed rgba(129, 199, 132, 0.5);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #558B2F;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.photo-capture-btn:hover {
+  background: rgba(129, 199, 132, 0.08);
+  border-color: #81C784;
+  color: #2E7D32;
+  transform: translateY(-2px);
+}
+
+.photo-capture-btn:active {
+  transform: translateY(1px);
+}
+
+.photo-capture-btn.is-uploading {
+  border-color: #FFB74D;
+  background: rgba(255, 183, 77, 0.05);
+  color: #E65100;
+  cursor: wait;
+}
+
+.capture-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-spinner {
+  animation: spin 1s infinite linear;
+}
+
+.photo-preview-wrapper {
+  position: relative;
+  width: 100%;
+  max-height: 200px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.photo-preview-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.photo-delete-btn:hover {
+  background: rgba(244, 67, 54, 0.9);
+  transform: scale(1.1);
+}
+
+.fade-in-animation {
+  animation: fieldFadeIn 0.35s ease-out;
+}
+
+@keyframes fieldFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
