@@ -36,6 +36,7 @@ const isSubmitting = ref(false);
 const selectedNicknameOption = ref('');
 const existingAnimalNames = ref<string[]>([]);
 const uploadedPhotoUrl = ref('');
+const localPreviewUrl = ref('');
 const isUploadingPhoto = ref(false);
 const cameraInput = ref<HTMLInputElement | null>(null);
 
@@ -152,6 +153,7 @@ const openModal = () => {
   formTimeOffset.value = 0;
   formPhotoUrl.value = '';
   uploadedPhotoUrl.value = '';
+  localPreviewUrl.value = '';
   fetchAnimalsList();
 };
 
@@ -184,6 +186,9 @@ const handlePhotoCapture = async (event: any) => {
   if (!files || files.length === 0) return;
   
   const file = files[0];
+  // 立即生成本地预览 URL，给用户即时的视觉反馈
+  localPreviewUrl.value = URL.createObjectURL(file);
+  
   const formData = new FormData();
   formData.append('file', file);
   
@@ -196,9 +201,29 @@ const handlePhotoCapture = async (event: any) => {
     });
     uploadedPhotoUrl.value = res.data.url;
     formPhotoUrl.value = res.data.url;
+    
+    // 自动用 AI 识别结果填充表单
+    if (res.data.aiData) {
+      const ai = res.data.aiData;
+      if (ai.type) {
+        formType.value = ai.type;
+      }
+      if (ai.nickname) {
+        selectedNicknameOption.value = '__NEW__';
+        formNickname.value = ai.nickname;
+      }
+      if (ai.features) {
+        formFeatures.value = ai.features;
+      }
+      if (ai.behaviorTag) {
+        formBehaviorTag.value = ai.behaviorTag;
+      }
+    }
   } catch (error) {
     console.error('图片上传失败:', error);
     alert('照片上传失败，请确保后端服务正常运行。');
+    // 上传失败时，清除本地预览以防止显示错误的数据
+    localPreviewUrl.value = '';
   } finally {
     isUploadingPhoto.value = false;
   }
@@ -207,6 +232,10 @@ const handlePhotoCapture = async (event: any) => {
 const removeUploadedPhoto = () => {
   uploadedPhotoUrl.value = '';
   formPhotoUrl.value = '';
+  if (localPreviewUrl.value) {
+    URL.revokeObjectURL(localPreviewUrl.value);
+    localPreviewUrl.value = '';
+  }
   if (cameraInput.value) {
     cameraInput.value.value = '';
   }

@@ -22,6 +22,9 @@ public class Animal {
     @Column(length = 50)
     private String breed; // 品种/特征描述，例如 Cat, Dog, Other
 
+    @Column(name = "description", length = 500)
+    private String description; // AI 优化整合后的特征描述
+
     @Column(name = "qr_code_id", unique = true, length = 100)
     private String qrCodeId; // 对应线下扫描二维码的唯一标识
 

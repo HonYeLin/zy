@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -103,5 +104,19 @@ public class AnalysisService {
             return narratives.get(0).getNarrativeContent();
         }
         return "还没有生成该小动物的生活记录，添加足迹后，AI 行为分析师将自动为它写日记喔！🐾";
+    }
+
+    /**
+     * 获取动物全部的生活叙事记录 (按时间升序)
+     */
+    public List<String> getAllNarratives(Long animalId) {
+        List<AnimalLifeNarrative> narratives = animalLifeNarrativeRepository.findByAnimalIdOrderByStartTimeDesc(animalId);
+        List<String> list = new ArrayList<>();
+        if (narratives != null && !narratives.isEmpty()) {
+            for (int i = narratives.size() - 1; i >= 0; i--) {
+                list.add(narratives.get(i).getNarrativeContent());
+            }
+        }
+        return list;
     }
 }

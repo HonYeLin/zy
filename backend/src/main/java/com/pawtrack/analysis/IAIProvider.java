@@ -14,4 +14,21 @@ public interface IAIProvider {
      * @return 行为标签 (EATING, SLEEPING, PLAYING, SUNBATHING, WALKING, OTHER)
      */
     String classifyBehavior(String description);
+
+    /**
+     * 判断新特征是否匹配已有的小动物实体
+     * @param type 动物类型 (Cat, Dog, Other)
+     * @param newFeatures 新发现特征
+     * @param existingAnimals 已有的同类小动物列表
+     * @return 匹配的动物ID，若不匹配返回 null
+     */
+    Long matchExistingAnimal(String type, String newFeatures, java.util.List<com.pawtrack.entity.Animal> existingAnimals);
+
+    /**
+     * 整合和优化已保存特征与新观察到的特征
+     * @param oldFeatures 已有特征描述
+     * @param newFeatures 新观察特征描述
+     * @return 优化后的特征描述
+     */
+    String optimizeAnimalFeatures(String oldFeatures, String newFeatures);
 }

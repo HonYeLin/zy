@@ -25,3 +25,5 @@ server:
 ai:
   gemini:
     api-key: AIzaSyAy02RKciG6EMW3HwZ9hN5w7DRHGpqgAuA
+  dashscope:
+    api-key: sk-95a1c478c213493797a50933c7709c7a

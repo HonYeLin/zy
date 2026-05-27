@@ -348,6 +348,32 @@ onUnmounted(() => {
               <span class="text">算算TA在干什么</span>
             </button>
           </div>
+
+          <!-- 成长日记 (Life Narrative) 便签卡片 -->
+          <div v-if="selectedAnimal" class="diary-container">
+            <div class="diary-card-title">
+              <span class="paw-icon">🐾</span>
+              {{ selectedAnimal.name }} 的成长日记
+            </div>
+            
+            <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
+              <div class="diary-pin"></div>
+              <div class="diary-content-area">
+                <div v-if="isNarrativeLoading" class="diary-loading">
+                  <span class="loading-dot"></span>
+                  <span class="loading-dot"></span>
+                  <span class="loading-dot"></span>
+                  <p>正在翻阅日记本...</p>
+                </div>
+                <div v-else>
+                  <p class="diary-text">{{ latestNarrative || '这只小家伙还没有成长日记喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写生动幽默的生活故事啦！🐾' }}</p>
+                  <div class="diary-footer">
+                    <span>✍️ 校园小生命分析师 Gemini</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- 右侧信息与控制侧面板 -->
@@ -397,31 +423,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- 成长日记 (Life Narrative) 便签卡片 -->
-            <div v-if="selectedAnimal" class="diary-container">
-              <div class="diary-card-title">
-                <span class="paw-icon">🐾</span>
-                {{ selectedAnimal.name }} 的成长日记
-              </div>
-              
-              <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
-                <div class="diary-pin"></div>
-                <div class="diary-content-area">
-                  <div v-if="isNarrativeLoading" class="diary-loading">
-                    <span class="loading-dot"></span>
-                    <span class="loading-dot"></span>
-                    <span class="loading-dot"></span>
-                    <p>正在翻阅日记本...</p>
-                  </div>
-                  <div v-else>
-                    <p class="diary-text">{{ latestNarrative || '这只小家伙还没有成长日记喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写生动幽默的生活故事啦！🐾' }}</p>
-                    <div class="diary-footer">
-                      <span>✍️ 校园小生命分析师 Gemini</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+
 
             <div class="tip-card">
               <h3>🐾 地图使用引导</h3>

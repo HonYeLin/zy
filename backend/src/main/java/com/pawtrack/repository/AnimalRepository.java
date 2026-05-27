@@ -10,5 +10,6 @@ import java.util.Optional;
 @Repository
 public interface AnimalRepository extends JpaRepository<Animal, Long> {
     List<Animal> findByNameAndBreed(String name, String breed);
+    List<Animal> findByBreed(String breed);
     Optional<Animal> findByQrCodeId(String qrCodeId);
 }
