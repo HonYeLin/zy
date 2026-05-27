@@ -461,16 +461,17 @@ onUnmounted(() => {
       <!-- 生活日记 (Life Diary) - 放置在分栏下方，真正全屏独占一横栏 -->
       <Transition name="fade-slide">
         <div v-if="selectedAnimal" class="diary-container full-width-diary">
-          <div class="diary-card-title">
-            <div class="diary-title-left">
-              <span class="paw-icon">🐾</span>
-              {{ selectedAnimal.name }} 的生活日记
-            </div>
-            <button class="close-diary-btn" @click="closeDiary" title="收起日记并清除选择">×</button>
-          </div>
-          
           <div class="diary-paper" :class="selectedAnimal.breed === 'Cat' ? 'cat-paper' : 'dog-paper'">
             <div class="diary-pin"></div>
+            
+            <div class="diary-card-title">
+              <div class="diary-title-left">
+                <span class="paw-icon">🐾</span>
+                {{ selectedAnimal.name }} 的生活日记
+              </div>
+              <button class="close-diary-btn" @click="closeDiary" title="收起日记并清除选择">×</button>
+            </div>
+            
             <div class="diary-content-area">
               <div v-if="isNarrativeLoading" class="diary-loading">
                 <span class="loading-dot"></span>
@@ -1122,14 +1123,16 @@ body, html {
 }
 
 .diary-card-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #558B2F;
-  margin-bottom: 10px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #2F4F4F;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  padding-bottom: 10px;
 }
 
 .diary-title-left {
@@ -1141,8 +1144,8 @@ body, html {
 .close-diary-btn {
   background: none;
   border: none;
-  color: #8fa38f;
-  font-size: 1.4rem;
+  color: #7f9f7f;
+  font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -1151,13 +1154,13 @@ body, html {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
 
 .close-diary-btn:hover {
   background: rgba(0, 0, 0, 0.05);
-  color: #558B2F;
+  color: #d32f2f;
   transform: rotate(90deg);
 }
 
