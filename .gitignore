@@ -11,6 +11,7 @@
 backend/target/
 frontend/dist/
 frontend/node_modules/
+frontend/.vite/
 node_modules/
 dist/
 target/
