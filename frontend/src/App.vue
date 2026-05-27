@@ -265,6 +265,18 @@ const handlePhotoError = (e: any) => {
   e.target.style.display = 'none';
 };
 
+const handleImageLoadError = (event: any, animal: Animal) => {
+  const target = event.target;
+  const genericUrl = `http://localhost:8080/images/${animal.breed.toLowerCase()}_avatar.png`;
+  if (target.src !== genericUrl) {
+    target.src = genericUrl;
+    target.alt = `文件名：static/images/${animal.breed.toLowerCase()}_avatar.png`;
+  } else {
+    target.src = '';
+    target.style.display = 'none';
+  }
+};
+
 let statsIntervalId: any = null;
 
 onMounted(() => {
@@ -452,21 +464,13 @@ onUnmounted(() => {
             
             <!-- Center placeholder / photo -->
             <div class="card-media">
-              <div class="media-placeholder">
-                <svg v-if="animal.breed === 'Cat'" viewBox="0 0 24 24" width="48" height="48" fill="#A5D6A7">
-                  <circle cx="7.5" cy="9.5" r="2" />
-                  <circle cx="12" cy="6.5" r="2.5" />
-                  <circle cx="16.5" cy="9.5" r="2" />
-                  <path d="M12 11c-1.8 0-3.5 1.5-3.5 3.3 0 1.8 1.5 3.2 3.5 3.2s3.5-1.4 3.5-3.2c0-1.8-1.7-3.3-3.5-3.3z"/>
-                </svg>
-                <svg v-else-if="animal.breed === 'Dog'" viewBox="0 0 24 24" width="48" height="48" fill="#FFCC80">
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15c-.8 0-1.5-.7-1.5-1.5S9.2 14 10 14s1.5.7 1.5 1.5-.7 1.5-1.5 1.5zm4 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" width="48" height="48" fill="#B0BEC5">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                </svg>
-                <span class="media-placeholder-txt">图片占位</span>
-              </div>
+              <img 
+                :src="`http://localhost:8080/images/${animal.name}_avatar.png`" 
+                @error="handleImageLoadError($event, animal)"
+                class="card-img" 
+                :alt="`昵称头像：static/images/${animal.name}_avatar.png`"
+                :title="`在后端 static/images 文件夹下放入口碑昵称图片 ${animal.name}_avatar.png 即可自动呈现！🐾`"
+              />
             </div>
             
             <!-- Bottom breed text -->
@@ -1367,6 +1371,13 @@ body, html {
 .directory-card:hover .card-media {
   background: #F1F8E9;
   border-color: rgba(129, 199, 132, 0.2);
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .media-placeholder {
