@@ -17,7 +17,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
             baseDir = new File(baseDir, "backend");
         }
         
-        File uploadDir = new File(baseDir, "src/main/resources/static/images");
+        File uploadDir = new File(baseDir, "uploads/images");
         if (!uploadDir.exists()) {
             uploadDir.mkdirs();
         }

@@ -45,8 +45,8 @@ public class UploadController {
                 baseDir = new File(baseDir, "backend");
             }
             
-            // 1. Target directory: src/main/resources/static/images/unclassified
-            File staticDir = new File(baseDir, "src/main/resources/static/images/unclassified");
+            // 1. Target directory: external uploads/images/unclassified
+            File staticDir = new File(baseDir, "uploads/images/unclassified");
             if (!staticDir.exists()) {
                 staticDir.mkdirs();
             }
@@ -65,15 +65,8 @@ public class UploadController {
             File destFile = new File(staticDir, newFilename);
             file.transferTo(destFile);
 
-            // 2. Also save to target/classes/static/images/unclassified for instant classloader fallback
-            File targetDir = new File(baseDir, "target/classes/static/images/unclassified");
-            if (!targetDir.exists()) {
-                targetDir.mkdirs();
-            }
-            Files.copy(destFile.toPath(), new File(targetDir, newFilename).toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-            // Return URL
-            String fileUrl = "http://localhost:8080/images/unclassified/" + newFilename;
+            // Return relative URL that works across environments
+            String fileUrl = "/images/unclassified/" + newFilename;
             response.put("url", fileUrl);
 
             // 3. Call DashScope Qwen-VL-Max to recognize the image
