@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# zy
-一个创意网站
-=======
 # Campus Paw-Track 校园流浪动物足迹追踪系统
 
 Campus Paw-Track 是一个基于校园地理信息系统 (GIS) 的社区众包追踪平台。旨在通过学生的实时足迹记录，结合 Google Gemini AI 行为分析与分类，构建校园流浪动物的行为轨迹图与健康状态模型，提升校园动物福利。
@@ -36,49 +32,134 @@ f:/AISai/
 │   ├── src/components/        # UI 组件 (MapContainer.vue)
 │   ├── src/App.vue            # 主页面
 │   └── src/style.css          # 全局样式
-└── gemini-code-1779813488083.sql # 数据库初始化脚本
+├── ZY.sql                     # 数据库初始化及测试数据脚本
+└── README.md                  # 项目说明文档
 ```
 
 ---
 
-## 3. 环境搭建与运行指南
+## 3. 详细部署步骤 (Windows / Linux)
 
-### 3.1 数据库初始化
-1. 确保本地安装并运行 MySQL 8.0 数据库。
-2. 在 MySQL 控制台或 Navicat 等客户端中，运行项目根目录下的 SQL 脚本：
+### 3.1 数据库与环境准备 (Win/Linux 通用)
+
+1. **环境依赖**:
+   - **Java**: JDK 17
+   - **Node.js**: v18+ 及 npm
+   - **数据库**: MySQL 8.0+
+   - **Maven**: 3.8+ (可选，后端已自带 `mvnw` wrapper)
+
+2. **数据库初始化**:
+   在 MySQL 环境中（无论是 Windows 的 Navicat 还是 Linux 的命令行），执行项目根目录下的 `ZY.sql` 文件：
    ```sql
-   source f:/AISai/gemini-code-1779813488083.sql;
+   CREATE DATABASE IF NOT EXISTS campus_paw_track DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   USE campus_paw_track;
+   SOURCE /绝对路径/ZY.sql;
    ```
-   该脚本会自动创建数据库 `campus_paw_track` 并创建 `animals`、`animal_logs` 和 `ai_predictions` 三张数据表。
 
-### 3.2 后端启动 (Spring Boot)
-1. 用 IntelliJ IDEA 打开 `backend` 文件夹。
-2. 检查 `src/main/resources/application.yml` 中的 MySQL 连接配置，确保用户名和密码正确 (默认为 `root` / `123456`)。
-3. 检查 `ai.gemini.api-key` 是否正确配置。
-4. 运行 `PawTrackApplication.java` 启动后端服务。服务默认运行在 `http://localhost:8080`。
-
-### 3.3 前端启动 (Vue 3)
-1. 打开终端进入 `frontend` 文件夹：
-   ```bash
-   cd frontend
-   ```
-2. 安装项目依赖：
-   ```bash
-   npm install
-   ```
-3. 启动开发服务器：
-   ```bash
-   npm run dev
-   ```
-4. 启动后，通过浏览器访问控制台输出的地址 (默认为 `http://localhost:5173` 或 `http://localhost:5174`)。
+3. **配置修改**:
+   打开 `backend/src/main/resources/application.yml`，根据您的实际环境修改以下配置：
+   - `spring.datasource.url`: 数据库连接地址
+   - `spring.datasource.username` / `password`: MySQL 账号密码
+   - `ai.gemini.api-key`: Gemini AI 接口密钥
+   - `ai.dashscope.api-key`: 阿里云通义千问 (Qwen-VL) 接口密钥
 
 ---
 
-## 4. 核心功能及特点
+### 3.2 Windows 本地开发与测试部署
+
+**前端运行**:
+1. 打开 PowerShell 或 CMD，进入前端目录：
+   ```powershell
+   cd frontend
+   npm install
+   npm run dev
+   ```
+2. 浏览器访问 `http://localhost:5173`。
+
+**后端运行**:
+1. 进入后端目录：
+   ```powershell
+   cd backend
+   .\mvnw spring-boot:run
+   ```
+2. 或者直接在 IntelliJ IDEA 中打开 `backend` 目录，运行 `PawTrackApplication.java`。后端默认监听 `8080` 端口。
+
+---
+
+### 3.3 Linux 服务器生产环境部署
+
+**1. 后端打包与后台运行**:
+在 Linux 终端中执行以下命令进行打包并后台运行：
+```bash
+cd backend
+
+# 赋予 Maven Wrapper 执行权限
+chmod +x mvnw
+
+# 编译并打包 (跳过测试)
+./mvnw clean package -DskipTests
+
+# 运行打包好的 Jar 包 (内置 Tomcat)，并挂载后台
+nohup java -jar target/backend-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+```
+
+**2. 前端打包与 Nginx 部署**:
+```bash
+cd frontend
+# 安装依赖并构建静态文件
+npm install
+npm run build
+```
+构建完成后，将 `frontend/dist` 目录下的所有静态文件复制到 Nginx 的网页根目录（如 `/usr/share/nginx/html`）。
+在 Nginx 配置中设置反向代理，将 `/api` 请求转发至后端的 `8080` 端口：
+```nginx
+location /api/ {
+    proxy_pass http://localhost:8080/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+---
+
+## 4. 核心接口说明 (API)
+
+项目包含以下核心业务接口，所有接口基础路径为 `http://localhost:8080/api`：
+
+### 4.1 动物档案与足迹接口
+- `GET /animals`
+  **获取档案列表**。返回所有小动物的基本信息、昵称、特征、AI总结及代表性头像。
+- `GET /locations/all`
+  **获取全量足迹**。用于主页地图渲染。
+- `GET /locations/animal/{animalId}`
+  **获取特定动物轨迹**。按时间排序，用于在地图上绘制连线与生存轨迹。
+- `POST /locations`
+  **上传新足迹**。接收包含经纬度、特征描述的 JSON 数据。系统会在后台触发 AI 自动特征融合及行为推演。
+
+### 4.2 AI 分析与交互接口
+- `GET /analysis/narrative/{animalId}`
+  **获取 AI 生活日记**。基于动物近期活动轨迹，由大模型生成的拟人化短篇日记。
+- `GET /analysis/behavior/{animalId}`
+  **AI 行为预测大脑**。结合历史足迹序列与环境信息，推演动物当前最可能的状态。
+- `POST /analysis/feedback`
+  **人工纠偏反馈**。若 AI 预测偏差，用户可提交实际行为状态，系统将其记录至 `prediction_feedbacks` 库供后续模型权重调优。
+
+### 4.3 评论留言与评分系统 (UGC)
+- `POST /reviews/ratings`
+  **提交评分**。对小动物的颜值、脾气、可见度等指标进行 1-10 分打分。
+- `GET /reviews/ratings/{animalId}/stats`
+  **获取评分统计**。计算并返回各项指标的平均分及总评分人数。
+- `POST /reviews/comments`
+  **发布留言**。支持游客身份及登录会员身份提交。
+- `POST /reviews/comments/{commentId}/like`
+  **点赞留言**。附带防刷机制的点赞/取消点赞操作。
+
+---
+
+## 5. 核心功能及特点
 
 1. **地图足迹渲染**：对接高德地图，自动展示范围内所有被记录小动物的点位标记。
 2. **侧边快速定位**：地图右下角配备雷达准星按钮，点击后可以使地图瞬间居中定位至当前物理位置。
 3. **悬浮爪印 FAB**：点击底部浮动的爪印大按钮，即可获取当前地理位置并弹出玻璃卡片式记录表单。
-4. **AI 行为自动分类**：在表单中填写描述后，Gemini AI 将根据语义智能识别小动物状态，并自动转换为 `EATING` (吃)、`SLEEPING` (睡)、`PLAYING` (玩) 等格式化标签入库。
+4. **AI 行为自动分类与图片评选**：Gemini 智能识别文字特征，Qwen-VL-Max 根据上传照片自动甄选最佳头像。
 5. **完全矢量化设计**：页面整体遵循“有机自然”美学设计，去除所有系统默认 Emoji 字符，采用统一风格的矢量 SVG，动效平滑优雅。
->>>>>>> origin/master
