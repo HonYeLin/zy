@@ -977,4 +977,51 @@ watch(() => props.animal.id, () => {
   color: #dc3545;
   transform: rotate(90deg);
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .animal-review-container {
+    padding: 16px;
+    border-radius: 16px;
+  }
+  
+  .review-top-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .encyclopedia-side {
+    flex: none;
+    border-right: none;
+    padding-right: 0;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+    padding-bottom: 16px;
+  }
+  
+  .rating-side {
+    flex: none;
+    padding-left: 0;
+  }
+  
+  .rating-box-inner {
+    max-width: 100%;
+  }
+
+  .rating-item {
+    justify-content: space-between;
+  }
+  
+  .rating-stars {
+    margin-left: auto;
+  }
+
+  .comment-item {
+    padding: 12px;
+  }
+
+  .comment-content, .comment-footer {
+    padding-left: 0;
+    margin-top: 8px;
+  }
+}
 </style>
