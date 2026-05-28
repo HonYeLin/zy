@@ -66,7 +66,7 @@ const initMap = (mapInstance: any) => {
 const fetchNearbyLogs = async () => {
   try {
     // 获取当前数据库中所有记录的实体
-    const res = await axios.get('http://localhost:8080/api/locations/all');
+    const res = await axios.get('/api/locations/all');
     animalLogs.value = res.data;
   } catch (error) {
     console.error('获取所有数据失败:', error);
@@ -172,7 +172,7 @@ const openModal = () => {
 
 const fetchAnimalsList = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/animals');
+    const res = await axios.get('/api/animals');
     const names: string[] = res.data.map((a: any) => a.name);
     existingAnimalNames.value = Array.from(new Set(names.filter(n => n && n.trim().length > 0)));
   } catch (error) {
@@ -207,7 +207,7 @@ const handlePhotoCapture = async (event: any) => {
   
   isUploadingPhoto.value = true;
   try {
-    const res = await axios.post('http://localhost:8080/api/upload', formData, {
+    const res = await axios.post('/api/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -268,7 +268,7 @@ const submitMarker = async () => {
   isSubmitting.value = true;
   
   try {
-    await axios.post('http://localhost:8080/api/locations', {
+    await axios.post('/api/locations', {
       type: formType.value,
       nickname: formNickname.value.trim(),
       features: formFeatures.value.trim(),

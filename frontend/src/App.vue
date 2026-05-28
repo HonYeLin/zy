@@ -48,7 +48,7 @@ const initializeUser = async () => {
 
   // 3. Authenticate guest
   try {
-    const res = await fetch(`http://localhost:8080/api/users/guest`, {
+    const res = await fetch(`/api/users/guest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guestDeviceId: deviceId })
@@ -94,7 +94,7 @@ const handleAuthSubmit = async () => {
       ? { username: authForm.value.username.trim(), password: authForm.value.password.trim(), nickname: authForm.value.nickname.trim() }
       : { username: authForm.value.username.trim(), password: authForm.value.password.trim() };
 
-    const res = await fetch(`http://localhost:8080/api/users/${endpoint}`, {
+    const res = await fetch(`/api/users/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -178,7 +178,7 @@ const getBreedLabel = (breed: string) => {
 // Fetch all animals
 const fetchAnimals = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/animals');
+    const res = await axios.get('/api/animals');
     animals.value = res.data;
     totalAnimalsCount.value = res.data.length;
     
@@ -194,7 +194,7 @@ const fetchAnimals = async () => {
 // Fetch total location logs count for stats
 const fetchLogsCount = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/locations/all');
+    const res = await axios.get('/api/locations/all');
     totalFootprintsCount.value = res.data.length;
   } catch (error) {
     console.error('获取足迹统计失败:', error);
@@ -206,7 +206,7 @@ const fetchNarrative = async (animalId: number) => {
   isNarrativeLoading.value = true;
   lifeRecords.value = [];
   try {
-    const res = await axios.get(`http://localhost:8080/api/analysis/narrative/${animalId}`);
+    const res = await axios.get(`/api/analysis/narrative/${animalId}`);
     lifeRecords.value = res.data.narratives || [];
   } catch (error) {
     console.error('获取日记失败:', error);
@@ -260,7 +260,7 @@ const fetchBehaviorReasoning = async (animalId: number) => {
       hour12: false
     });
     const currentTime = formatter.format(now).replace(/\//g, '-');
-    const res = await axios.get(`http://localhost:8080/api/analysis/behavior/${animalId}?currentTime=${encodeURIComponent(currentTime)}`);
+    const res = await axios.get(`/api/analysis/behavior/${animalId}?currentTime=${encodeURIComponent(currentTime)}`);
     aiReasoningResult.value = res.data.result;
   } catch (error) {
     console.error('AI行为推理失败:', error);
@@ -293,7 +293,7 @@ const submitConfirmedFeedback = async () => {
   if (!selectedAnimalId.value) return;
   const predicted = getPredictedBehaviorShort(aiReasoningResult.value);
   try {
-    await axios.post('http://localhost:8080/api/analysis/feedback', {
+    await axios.post('/api/analysis/feedback', {
       animalId: selectedAnimalId.value,
       predictedBehavior: predicted,
       actualBehavior: predicted,
@@ -324,7 +324,7 @@ const submitCorrectedFeedback = async () => {
   const actualLabel = behaviors.find(b => b.value === selectedCorrectBehavior.value)?.label || '其他';
   
   try {
-    await axios.post('http://localhost:8080/api/analysis/feedback', {
+    await axios.post('/api/analysis/feedback', {
       animalId: selectedAnimalId.value,
       predictedBehavior: predicted,
       actualBehavior: actualLabel,
@@ -382,12 +382,12 @@ const openTrajectoryModal = async (animal: Animal) => {
   isTrajectoryLoading.value = true;
   trajectoryLogs.value = [];
   try {
-    const res = await axios.get(`http://localhost:8080/api/locations/animal/${animal.id}`);
+    const res = await axios.get(`/api/locations/animal/${animal.id}`);
     trajectoryLogs.value = res.data;
     
     // 如果该小动物还没有 AI 简介（或者之前生成失败），我们在后台异步请求生成一个并更新
     if (!trajectoryAnimal.value.aiSummary) {
-      axios.post(`http://localhost:8080/api/analysis/summary/${animal.id}`)
+      axios.post(`/api/analysis/summary/${animal.id}`)
         .then(summaryRes => {
           if (summaryRes.data && summaryRes.data.summary) {
             if (trajectoryAnimal.value && trajectoryAnimal.value.id === animal.id) {
@@ -433,7 +433,7 @@ const handlePhotoError = (e: any) => {
 
 const handleImageLoadError = (event: any, animal: Animal) => {
   const target = event.target;
-  const genericUrl = `http://localhost:8080/images/${animal.breed.toLowerCase()}_avatar.png`;
+  const genericUrl = `/images/${animal.breed.toLowerCase()}_avatar.png`;
   if (target.src !== genericUrl) {
     target.src = genericUrl;
     target.alt = `文件名：static/images/${animal.breed.toLowerCase()}_avatar.png`;
@@ -688,7 +688,7 @@ onUnmounted(() => {
             <!-- Center placeholder / photo -->
             <div class="card-media">
               <img 
-                :src="animal.avatarUrl || `http://localhost:8080/images/${animal.name}_avatar.png`" 
+                :src="animal.avatarUrl || `/images/${animal.name}_avatar.png`" 
                 @error="handleImageLoadError($event, animal)"
                 class="card-img" 
                 :alt="`头像：${animal.name}`"

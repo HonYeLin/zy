@@ -185,7 +185,7 @@ const setRating = (metric: string, score: number) => {
 
 const fetchStats = async () => {
   try {
-    const res = await fetch(`http://localhost:8080/api/reviews/ratings/${props.animal.id}/stats`);
+    const res = await fetch(`/api/reviews/ratings/${props.animal.id}/stats`);
     if (res.ok) {
       stats.value = await res.json();
     }
@@ -202,7 +202,7 @@ const submitRating = async () => {
   }
   isSubmittingRating.value = true;
   try {
-    const res = await fetch(`http://localhost:8080/api/reviews/ratings`, {
+    const res = await fetch(`/api/reviews/ratings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -249,7 +249,7 @@ try {
 const fetchComments = async () => {
   isLoadingComments.value = true;
   try {
-    const res = await fetch(`http://localhost:8080/api/reviews/comments/${props.animal.id}?page=${currentPage.value}&size=5&sort=${currentSort.value}`);
+    const res = await fetch(`/api/reviews/comments/${props.animal.id}?page=${currentPage.value}&size=5&sort=${currentSort.value}`);
     if (res.ok) {
       const data = await res.json();
       comments.value = data.content;
@@ -267,7 +267,7 @@ const submitComment = async () => {
   if (!newComment.value.content.trim()) return;
   isSubmittingComment.value = true;
   try {
-    const res = await fetch(`http://localhost:8080/api/reviews/comments`, {
+    const res = await fetch(`/api/reviews/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -292,7 +292,7 @@ const submitComment = async () => {
 const likeComment = async (commentId: number) => {
   const isLiked = likedCommentIds.value.includes(commentId);
   try {
-    const res = await fetch(`http://localhost:8080/api/reviews/comments/${commentId}/like?cancel=${isLiked}`, { method: 'POST' });
+    const res = await fetch(`/api/reviews/comments/${commentId}/like?cancel=${isLiked}`, { method: 'POST' });
     if (res.ok) {
       // update local
       const c = comments.value.find(x => x.id === commentId);
@@ -319,7 +319,7 @@ const likeComment = async (commentId: number) => {
 const deleteComment = async (commentId: number) => {
   if (!confirm('确认要删除这条留言吗？')) return;
   try {
-    const res = await fetch(`http://localhost:8080/api/reviews/comments/${commentId}?userId=${props.currentUser.id}`, {
+    const res = await fetch(`/api/reviews/comments/${commentId}?userId=${props.currentUser.id}`, {
       method: 'DELETE'
     });
     if (res.ok) {
