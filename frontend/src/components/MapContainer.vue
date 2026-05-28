@@ -40,7 +40,8 @@ const currentLocation = ref({ lng: 0, lat: 0 });
 const formType = ref('Cat'); // 'Cat' | 'Dog' | 'Other'
 const formNickname = ref('');
 const formFeatures = ref('');
-const formBehaviorTag = ref(''); // '' | 'EATING' | 'SLEEPING' | 'PLAYING' | 'SUNBATHING' | 'WALKING' | 'OTHER'
+const formSceneDescription = ref('');
+const formBehaviorTag = ref('WALKING'); // '' | 'EATING' | 'SLEEPING' | 'PLAYING' | 'SUNBATHING' | 'WALKING' | 'OTHER'
 const formTimeOffset = ref(0); // minutes offset: 0, 10, 30, 60, 120
 const formPhotoUrl = ref('');
 const isSubmitting = ref(false);
@@ -162,7 +163,8 @@ const openModal = () => {
   formNickname.value = '';
   selectedNicknameOption.value = '';
   formFeatures.value = '';
-  formBehaviorTag.value = '';
+  formSceneDescription.value = '';
+  formBehaviorTag.value = 'WALKING';
   formTimeOffset.value = 0;
   formPhotoUrl.value = '';
   uploadedPhotoUrl.value = '';
@@ -222,21 +224,37 @@ const handlePhotoCapture = async (event: any) => {
         formType.value = ai.type;
       }
       if (ai.nickname) {
-        selectedNicknameOption.value = '__NEW__';
-        formNickname.value = ai.nickname;
+        if (ai.isExisting) {
+          if (!existingAnimalNames.value.includes(ai.nickname)) {
+            existingAnimalNames.value.push(ai.nickname);
+          }
+          selectedNicknameOption.value = ai.nickname;
+          formNickname.value = ai.nickname;
+        } else {
+          selectedNicknameOption.value = '__NEW__';
+          formNickname.value = ai.nickname;
+        }
       }
       if (ai.features) {
         formFeatures.value = ai.features;
+      }
+
+      if (ai.sceneDescription) {
+        formSceneDescription.value = ai.sceneDescription;
       }
       if (ai.behaviorTag) {
         formBehaviorTag.value = ai.behaviorTag;
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('图片上传失败:', error);
-    alert('照片上传失败，请确保后端服务正常运行。');
-    // 上传失败时，清除本地预览以防止显示错误的数据
-    localPreviewUrl.value = '';
+    if (error.response && error.response.data && error.response.data.code === 'NO_ANIMAL') {
+      alert(error.response.data.error || '未检测到小动物，请重新拍摄或选择包含小动物的图片！');
+    } else {
+      alert('照片上传失败，请确保后端服务正常运行。');
+    }
+    // 上传失败或无小动物时，彻底清除本地预览及状态
+    removeUploadedPhoto();
   } finally {
     isUploadingPhoto.value = false;
   }
@@ -272,12 +290,14 @@ const submitMarker = async () => {
       type: formType.value,
       nickname: formNickname.value.trim(),
       features: formFeatures.value.trim(),
+      sceneDescription: formSceneDescription.value.trim(),
       longitude: currentLocation.value.lng,
       latitude: currentLocation.value.lat,
       behaviorTag: formBehaviorTag.value,
       qrCodeId: '',
       timeOffset: formTimeOffset.value,
-      photoUrl: formPhotoUrl.value.trim()
+      photoUrl: formPhotoUrl.value.trim(),
+      skipAiMatch: !!formPhotoUrl.value.trim()
     });
     isSubmitting.value = false;
     closeModal();
@@ -579,8 +599,9 @@ const trajectoryLineColor = computed(() => {
               <input type="text" v-model="formNickname" placeholder="请输入新小动物的昵称 (如：花花)" class="elegant-input" />
             </div>
             
+
             <div class="input-group">
-              <textarea v-model="formFeatures" placeholder="有什么特征？(如：左耳缺角，很亲人)" rows="2" class="elegant-input"></textarea>
+              <textarea v-model="formSceneDescription" placeholder="有什么画面描述？(如：大橘正在草地里睡午觉)" rows="2" class="elegant-input"></textarea>
             </div>
 
             <!-- 行为状态选择器 (behavior_tag) -->

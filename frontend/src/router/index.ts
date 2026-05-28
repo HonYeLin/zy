@@ -45,11 +45,9 @@ const router = createRouter({
 // Admin Route Guard
 router.beforeEach((to, _from, next) => {
   if (to.path.startsWith('/admin')) {
-    const token = localStorage.getItem('admin_token');
-    if (!token && to.path !== '/admin/login') {
-      // Prompt for login (we will do a simple modal or redirect to home for now, 
-      // but let's just let it pass and we'll handle login in AdminLayout)
-      next();
+    const token = sessionStorage.getItem('admin_token');
+    if (!token) {
+      next('/');
     } else {
       next();
     }

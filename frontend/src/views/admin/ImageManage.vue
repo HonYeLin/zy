@@ -84,7 +84,7 @@ onMounted(() => {
 
 .subtitle {
   margin: 0;
-  color: #64748b;
+  color: #475569;
   font-size: 15px;
 }
 
@@ -191,7 +191,7 @@ onMounted(() => {
 
 .size {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
 }
 
 .empty-state {
@@ -201,7 +201,7 @@ onMounted(() => {
   background: white;
   border-radius: 16px;
   border: 1px dashed #cbd5e1;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .empty-icon {

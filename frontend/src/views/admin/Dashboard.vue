@@ -65,7 +65,7 @@ onMounted(async () => {
 
 .subtitle {
   margin: 0;
-  color: #64748b;
+  color: #475569;
   font-size: 15px;
 }
 
@@ -117,7 +117,7 @@ onMounted(async () => {
 
 .stat-content h3 {
   margin: 0;
-  color: #64748b;
+  color: #475569;
   font-size: 14px;
   font-weight: 500;
 }

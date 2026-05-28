@@ -39,6 +39,9 @@ public class LocationLog {
     @Column(length = 200)
     private String description; // 补充描述 / 特征
 
+    @Column(name = "scene_description", length = 255)
+    private String sceneDescription; // 当前行为画面描述
+
     @Column(name = "recorded_at", nullable = false)
     private LocalDateTime recordedAt; // 实际拍摄/观察时间
 

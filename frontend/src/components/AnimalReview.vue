@@ -3,15 +3,22 @@
     <!-- Close button for the details panel -->
     <button class="close-review-btn" @click="$emit('close')" title="关闭面板">×</button>
     <div class="review-top-row">
-      <!-- 左侧：图鉴样式 -->
+      <!-- 左侧：图鉴拍立得相框样式 -->
       <div class="encyclopedia-side">
-        <div class="encyclopedia-card">
-          <img v-if="animal.avatarUrl" :src="animal.avatarUrl.replace('http://localhost:8080', '')" class="animal-avatar" alt="avatar" />
-          <div class="animal-info">
-            <h3 class="animal-name">{{ animal.name }}</h3>
-            <!-- 去掉 breed 品种显示 -->
-            <p class="animal-desc">{{ animal.aiSummary || animal.description || '暂无描述' }}</p>
+        <div class="polaroid-wrapper">
+          <div class="polaroid-card">
+            <div class="polaroid-tape"></div>
+            <div class="polaroid-image-container" @click="isImageZoomed = true" title="点击放大图片">
+              <img v-if="animal.avatarUrl" :src="animal.avatarUrl.replace('http://localhost:8080', '')" class="animal-avatar" alt="avatar" />
+            </div>
+            <div class="polaroid-caption">
+              <h3 class="handwritten-name">{{ animal.name }}</h3>
+            </div>
           </div>
+        </div>
+        <div class="animal-info-notebook">
+          <div class="notebook-tag">✍️ {{ getAnimalTypeTitle(animal.breed) }}</div>
+          <p class="animal-desc">{{ animal.aiSummary || animal.description || '暂无描述' }}</p>
         </div>
       </div>
 
@@ -23,7 +30,7 @@
           <div class="rating-grid">
             <div class="rating-item" v-for="metric in metrics" :key="metric.key">
               <span class="metric-label">{{ metric.label }}</span>
-              <div class="stars-input">
+              <div class="stars-input" :class="{ 'disabled-stars': isGuest }">
                 <span 
                   v-for="n in 10" 
                   :key="n" 
@@ -33,7 +40,7 @@
                     'is-right-half': n % 2 === 0,
                     'is-left-half': n % 2 !== 0
                   }"
-                  @click="setRating(metric.key, n)"
+                  @click="isGuest ? showLoginAlert() : setRating(metric.key, n)"
                 ></span>
               </div>
               <span class="metric-score">{{ userRating[metric.key] }} / 10</span>
@@ -41,7 +48,9 @@
           </div>
           
           <div class="submit-rating-row">
-             <button class="submit-rating-btn" @click="submitRating" :disabled="isSubmittingRating">提交评分</button>
+             <button class="submit-rating-btn" @click="submitRating" :disabled="isSubmittingRating || isGuest">
+               {{ isGuest ? '请先登录后再打分' : '提交评分' }}
+             </button>
           </div>
         </div>
 
@@ -62,7 +71,7 @@
 
     <!-- 下方：留言区 -->
     <div class="comments-section">
-      <h4 class="comments-title">💬 留言板</h4>
+      <h4 class="comments-title">💬 他言我语</h4>
       
       <!-- 留言输入框 -->
       <div class="comment-input-box">
@@ -102,7 +111,13 @@
         <div v-else-if="comments.length === 0" class="comments-empty">还没有人留言，快来说两句吧！</div>
         
         <div v-else class="comments-list">
-           <div class="comment-item" v-for="comment in comments" :key="comment.id">
+           <div 
+             class="comment-item" 
+             v-for="(comment, index) in comments" 
+             :key="comment.id"
+             :class="['sticky-note-' + (index % 4)]"
+           >
+              <div class="comment-tape"></div>
               <div class="comment-user">
                 <span class="user-avatar-placeholder">{{ comment.userNickname.charAt(0) }}</span>
                 <span class="user-name">{{ comment.userNickname }}</span>
@@ -144,16 +159,55 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片放大弹窗 (手账风格) -->
+    <Transition name="zoom-fade">
+      <div v-if="isImageZoomed && animal.avatarUrl" class="image-zoom-overlay" @click.self="isImageZoomed = false">
+        <div class="image-zoom-modal">
+          <button class="close-zoom-btn" @click="isImageZoomed = false" title="关闭">×</button>
+          <div class="zoom-polaroid">
+            <div class="zoom-polaroid-tape"></div>
+            <div class="zoom-image-container">
+              <img :src="animal.avatarUrl.replace('http://localhost:8080', '')" alt="enlarged avatar" />
+            </div>
+            <div class="zoom-caption">
+              <h3 class="handwritten-name">{{ animal.name }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
+
+const isImageZoomed = ref(false);
 
 const props = defineProps<{
   animal: any;
   currentUser?: any;
 }>();
+
+const isGuest = computed(() => {
+  return !props.currentUser || props.currentUser.role === 'GUEST';
+});
+
+const showLoginAlert = () => {
+  alert('未登录游客仅能查看评分，请先登录/注册后再打分！');
+};
+
+const getAnimalTypeTitle = (type: string) => {
+  if (!type) return 'TA的简介';
+  const t = type.toLowerCase();
+  if (t.includes('猫') || t.includes('cat')) {
+    return '咪的简介';
+  } else if (t.includes('狗') || t.includes('dog')) {
+    return '汪的简介';
+  }
+  return 'TA的简介';
+};
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -369,16 +423,32 @@ watch(() => props.animal.id, () => {
 
 <style scoped>
 .animal-review-container {
-  position: relative; /* Added for close button positioning */
-  background: rgba(255, 255, 255, 0.85);
+  position: relative;
+  background: linear-gradient(180deg, #FDFDF7 0%, #FAF7EE 100%);
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-  padding: 24px;
-  margin-top: 2.5rem; /* Optimized spacing from the button above */
+  /* 左侧书脊：深绿色皮质/麻布书脊 */
+  border-left: 20px solid #558B2F;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 3px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 35px rgba(0,0,0,0.08), inset 5px 0 10px rgba(0,0,0,0.03);
+  padding: 24px 24px 24px 36px;
+  margin-top: 2.5rem;
   margin-bottom: 20px;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* 缝合线视觉效果 */
+.animal-review-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 0;
+  border-left: 2px dashed rgba(255, 255, 255, 0.45);
+  pointer-events: none;
 }
 
 .review-top-row {
@@ -387,42 +457,106 @@ watch(() => props.animal.id, () => {
   margin-bottom: 30px;
 }
 
-/* 图鉴侧 */
+/* 图鉴侧 - 拍立得手账风 */
 .encyclopedia-side {
   flex: 0 0 35%;
-  border-right: 1px dashed #ccc;
+  border-right: 2px dashed rgba(196, 185, 163, 0.5);
   padding-right: 20px;
 }
 
-.encyclopedia-card {
+.polaroid-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding-top: 10px;
+}
+
+.polaroid-card {
+  background: #ffffff;
+  padding: 10px 10px 18px 10px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+  transform: rotate(-3deg);
+  transition: all 0.3s ease;
+  position: relative;
+  max-width: 160px;
+  width: 100%;
+}
+
+.polaroid-card:hover {
+  transform: rotate(0deg) scale(1.05);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+}
+
+.polaroid-tape {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%) rotate(4deg);
+  width: 55px;
+  height: 16px;
+  background: rgba(255, 213, 79, 0.4);
+  border: 1px dashed rgba(0, 0, 0, 0.04);
+}
+
+.polaroid-image-container {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: #fdfdfd;
+  cursor: zoom-in;
+}
+
+.polaroid-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.polaroid-image-container:hover img {
+  transform: scale(1.08);
+}
+
+.polaroid-caption {
+  margin-top: 8px;
   text-align: center;
 }
 
-.animal-avatar {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid #fff;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  margin-bottom: 15px;
+.handwritten-name {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #3E2723;
+  letter-spacing: 0.5px;
 }
 
-.animal-name {
-  margin: 0 0 15px 0;
-  font-size: 1.5em;
-  color: #333;
+.animal-info-notebook {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px dashed rgba(85, 139, 47, 0.25);
+  box-sizing: border-box;
+}
+
+.notebook-tag {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #558B2F;
+  margin-bottom: 6px;
+  text-align: left;
+  letter-spacing: 0.5px;
 }
 
 .animal-desc {
-  font-size: 0.95em;
-  color: #555;
+  font-size: 0.9em;
+  color: #5D4037;
   line-height: 1.6;
   text-align: left;
-  background: rgba(0, 0, 0, 0.02);
-  padding: 12px;
-  border-radius: 8px;
-  border-left: 3px solid #5eaf66;
+  margin: 0;
 }
 
 /* 打分侧 */
@@ -441,9 +575,10 @@ watch(() => props.animal.id, () => {
 
 .rating-title {
   margin: 0 0 20px 0;
-  color: #333;
+  color: #3E2723;
   font-size: 1.25em;
   text-align: center;
+  font-weight: 800;
 }
 
 .rating-grid {
@@ -462,11 +597,11 @@ watch(() => props.animal.id, () => {
 .metric-label {
   width: 75px;
   font-weight: bold;
-  color: #444;
+  color: #5D4037;
   font-size: 1.05em;
 }
 
-/* 评分星星样式：放大并优化半星 */
+/* 评分星星样式 */
 .stars-input {
   display: inline-flex;
   position: relative;
@@ -476,15 +611,20 @@ watch(() => props.animal.id, () => {
   user-select: none;
 }
 
+.stars-input.disabled-stars {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .star-half {
   width: 16px;
   overflow: hidden;
-  color: #ddd;
+  color: #e0dcd3;
   transition: color 0.15s, transform 0.1s;
   display: inline-block;
 }
 
-.star-half:hover {
+.stars-input:not(.disabled-stars) .star-half:hover {
   transform: scale(1.15);
 }
 
@@ -519,21 +659,24 @@ watch(() => props.animal.id, () => {
 }
 
 .submit-rating-btn {
-  background: #4caf50;
+  background: linear-gradient(135deg, #689F38, #558B2F);
   color: white;
   border: none;
   padding: 10px 24px;
-  border-radius: 6px;
+  border-radius: 12px;
   cursor: pointer;
   font-weight: bold;
   font-size: 1em;
   transition: background 0.3s, transform 0.1s;
   width: 100%;
   max-width: 200px;
+  box-shadow: 0 4px 10px rgba(85, 139, 47, 0.15);
 }
 
 .submit-rating-btn:hover {
-  background: #43a047;
+  background: #33691E;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(85, 139, 47, 0.25);
 }
 
 .submit-rating-btn:active {
@@ -541,15 +684,18 @@ watch(() => props.animal.id, () => {
 }
 
 .submit-rating-btn:disabled {
-  background: #a5d6a7;
+  background: #C8E6C9;
+  color: #81C784;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .rating-stats {
   margin-top: 20px;
-  background: #f9f9f9;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed #C4B9A3;
   padding: 12px 18px;
-  border-radius: 8px;
+  border-radius: 12px;
   max-width: 360px;
   width: 100%;
   margin-left: auto;
@@ -560,7 +706,7 @@ watch(() => props.animal.id, () => {
 
 .rating-stats h5 {
   margin: 0 0 10px 0;
-  color: #444;
+  color: #5D4037;
   font-size: 0.95em;
 }
 
@@ -572,11 +718,11 @@ watch(() => props.animal.id, () => {
 
 .stat-item {
   font-size: 0.9em;
-  color: #666;
+  color: #5D4037;
   background: #fff;
   padding: 6px 12px;
   border-radius: 12px;
-  border: 1px solid #eee;
+  border: 1px solid rgba(196, 185, 163, 0.3);
   box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
@@ -592,20 +738,19 @@ watch(() => props.animal.id, () => {
 
 /* 留言区 */
 .comments-section {
-  border-top: 2px dashed rgba(76, 175, 80, 0.15); /* Soft natural dashed line */
+  border-top: 2px dashed rgba(85, 139, 47, 0.15);
   padding-top: 25px;
   margin-top: 20px;
 }
 
 .comments-title {
   margin: 0 0 20px 0;
-  color: #1B5E20; /* Deep forest green */
+  color: #3E2723;
   font-size: 1.3rem;
   font-weight: 800;
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .comment-input-box {
@@ -613,13 +758,11 @@ watch(() => props.animal.id, () => {
   flex-direction: column;
   gap: 14px;
   margin-bottom: 30px;
-  background: rgba(255, 255, 255, 0.5); /* Clear glass card backing */
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.55);
   padding: 20px;
   border-radius: 18px;
-  border: 1px solid rgba(76, 175, 80, 0.15);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(85, 139, 47, 0.18);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.02);
 }
 
 /* 登录状态栏样式 */
@@ -627,22 +770,22 @@ watch(() => props.animal.id, () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   padding: 8px 14px;
   border-radius: 12px;
-  border: 1px solid rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(85, 139, 47, 0.08);
 }
 
 .status-badge {
-  color: #2F4F4F;
+  color: #3E2723;
   font-size: 0.9em;
   font-weight: 600;
 }
 
 .login-stub-btn {
   background: #fff;
-  border: 1.5px solid rgba(76, 175, 80, 0.3);
-  color: #2E7D32;
+  border: 1.5px solid rgba(85, 139, 47, 0.3);
+  color: #558B2F;
   padding: 4px 14px;
   border-radius: 8px;
   cursor: pointer;
@@ -652,31 +795,36 @@ watch(() => props.animal.id, () => {
 }
 
 .login-stub-btn:hover {
-  background: rgba(76, 175, 80, 0.05);
-  border-color: #2E7D32;
+  background: rgba(85, 139, 47, 0.05);
+  border-color: #558B2F;
   transform: translateY(-1px);
 }
 
+/* 信纸横线风格输入框 */
 .comment-textarea {
   width: 100%;
-  height: 100px;
-  padding: 14px;
-  border: 1.5px solid rgba(76, 175, 80, 0.18);
+  height: 110px;
+  padding: 10px 14px;
+  line-height: 24px;
+  font-size: 0.95rem;
+  border: 1px solid #C4B9A3;
   border-radius: 12px;
   resize: vertical;
   font-family: inherit;
   box-sizing: border-box;
-  font-size: 0.95rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255, 255, 255, 0.85);
-  color: #2F4F4F;
+  color: #3E2723;
+  background-color: #FFFDF9;
+  background-image: linear-gradient(#e5dec9 1px, transparent 1px);
+  background-size: 100% 24px;
+  background-attachment: local;
+  transition: all 0.3s ease;
 }
 
 .comment-textarea:focus {
   outline: none;
-  border-color: #2E7D32;
-  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.15);
-  background: #ffffff;
+  border-color: #8D6E63;
+  box-shadow: 0 0 0 4px rgba(141, 110, 99, 0.12);
+  background-color: #ffffff;
 }
 
 .comment-actions {
@@ -685,7 +833,7 @@ watch(() => props.animal.id, () => {
 }
 
 .submit-comment-btn {
-  background: linear-gradient(135deg, #4CAF50, #2E7D32); /* Premium organic green gradient */
+  background: linear-gradient(135deg, #689F38, #558B2F);
   color: white;
   border: none;
   padding: 10px 28px;
@@ -693,14 +841,14 @@ watch(() => props.animal.id, () => {
   cursor: pointer;
   font-weight: 700;
   font-size: 0.95rem;
-  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.18);
+  box-shadow: 0 4px 12px rgba(85, 139, 47, 0.15);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
 }
 
 .submit-comment-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.28);
+  box-shadow: 0 6px 16px rgba(85, 139, 47, 0.25);
 }
 
 .submit-comment-btn:active:not(:disabled) {
@@ -714,7 +862,7 @@ watch(() => props.animal.id, () => {
   box-shadow: none;
 }
 
-/* 留言列表头部与精美 Pill Tabs 样式 */
+/* 留言列表头部 */
 .comments-header {
   display: flex;
   justify-content: space-between;
@@ -748,33 +896,79 @@ watch(() => props.animal.id, () => {
 }
 
 .sort-tabs span:hover:not(.active) {
-  color: #2E7D32;
+  color: #558B2F;
 }
 
 .sort-tabs span.active {
   background: white;
-  color: #2E7D32;
+  color: #558B2F;
   font-weight: bold;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-/* 气泡玻璃卡片式留言项 */
+/* 便签拼贴风格留言项 */
 .comment-item {
-  border-radius: 18px;
-  padding: 18px;
-  margin-bottom: 16px;
-  background: rgba(255, 255, 255, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.015);
+  position: relative;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.03);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-sizing: border-box;
 }
 
 .comment-item:hover {
-  transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 12px 24px rgba(76, 175, 80, 0.08);
-  border-color: rgba(76, 175, 80, 0.25);
+  transform: translateY(-5px) scale(1.01) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+  z-index: 5;
+}
+
+/* 莫兰迪糖果色便利贴 */
+.sticky-note-0 {
+  background: #FFFDF0;
+  transform: rotate(-0.5deg);
+  border-radius: 8px 12px 10px 14px / 12px 10px 14px 8px;
+}
+.sticky-note-1 {
+  background: #F1F9F0;
+  transform: rotate(0.6deg);
+  border-radius: 12px 8px 14px 10px / 8px 12px 10px 14px;
+}
+.sticky-note-2 {
+  background: #FFF8EE;
+  transform: rotate(-0.8deg);
+  border-radius: 10px 14px 8px 12px / 14px 8px 12px 10px;
+}
+.sticky-note-3 {
+  background: #F5F7F8;
+  transform: rotate(0.4deg);
+  border-radius: 14px 10px 12px 8px / 10px 14px 8px 12px;
+}
+
+/* 和纸胶带效果 */
+.comment-tape {
+  position: absolute;
+  top: -11px;
+  left: 45%;
+  width: 50px;
+  height: 16px;
+  transform: rotate(-2deg);
+  border: 1px dashed rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
+  pointer-events: none;
+}
+
+.sticky-note-0 .comment-tape {
+  background-color: rgba(255, 235, 59, 0.22);
+}
+.sticky-note-1 .comment-tape {
+  background-color: rgba(129, 199, 132, 0.22);
+}
+.sticky-note-2 .comment-tape {
+  background-color: rgba(255, 183, 77, 0.22);
+}
+.sticky-note-3 .comment-tape {
+  background-color: rgba(129, 212, 250, 0.22);
 }
 
 .comment-user {
@@ -787,7 +981,7 @@ watch(() => props.animal.id, () => {
 .user-avatar-placeholder {
   width: 38px;
   height: 38px;
-  background: linear-gradient(135deg, #81C784, #388E3C); /* Forest green gradient */
+  background: linear-gradient(135deg, #81C784, #388E3C);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -796,24 +990,24 @@ watch(() => props.animal.id, () => {
   font-weight: 800;
   font-size: 1rem;
   border: 2px solid white;
-  box-shadow: 0 3px 8px rgba(76, 175, 80, 0.18);
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.15);
 }
 
 .user-name {
   font-weight: 700;
-  color: #2E7D32; /* Deep theme green */
+  color: #3E2723;
 }
 
 .comment-time {
   font-size: 0.8em;
-  color: #888;
+  color: #8D6E63;
 }
 
 .comment-content {
-  color: #2F4F4F;
+  color: #3E2723;
   line-height: 1.6;
   margin-bottom: 10px;
-  padding-left: 50px; /* Aligns text cleanly to the right of the avatar placeholder */
+  padding-left: 50px;
   font-size: 0.96rem;
   text-align: left;
 }
@@ -828,7 +1022,7 @@ watch(() => props.animal.id, () => {
 .like-btn {
   background: none;
   border: none;
-  color: #666;
+  color: #8D6E63;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -844,12 +1038,12 @@ watch(() => props.animal.id, () => {
 }
 
 .like-btn.has-liked {
-  color: #2E7D32; /* Deep theme green */
+  color: #558B2F;
   font-weight: bold;
-  background: rgba(76, 175, 80, 0.08);
+  background: rgba(129, 199, 132, 0.15);
 }
 
-/* 优雅暖红的删除按钮 */
+/* 删除按钮 */
 .delete-comment-btn {
   background: rgba(229, 57, 53, 0.04);
   border: none;
@@ -886,8 +1080,8 @@ watch(() => props.animal.id, () => {
 .pagination button {
   padding: 6px 18px;
   background: #fff;
-  border: 1px solid rgba(76, 175, 80, 0.22);
-  color: #2E7D32;
+  border: 1px solid rgba(85, 139, 47, 0.22);
+  color: #558B2F;
   border-radius: 12px;
   cursor: pointer;
   font-weight: 700;
@@ -896,8 +1090,8 @@ watch(() => props.animal.id, () => {
 }
 
 .pagination button:hover:not(:disabled) {
-  background: rgba(76, 175, 80, 0.06);
-  border-color: #2E7D32;
+  background: rgba(85, 139, 47, 0.06);
+  border-color: #558B2F;
   transform: translateY(-1px);
 }
 
@@ -924,13 +1118,13 @@ watch(() => props.animal.id, () => {
 }
 
 .role-indicator.guest {
-  background: #e8f0fe;
-  color: #1a73e8;
+  background: #efebe9;
+  color: #5d4037;
 }
 
 .role-indicator.user {
-  background: #e6f4ea;
-  color: #137333;
+  background: #e8f5e9;
+  color: #2e7d32;
 }
 
 .logout-btn {
@@ -981,7 +1175,7 @@ watch(() => props.animal.id, () => {
 /* 移动端适配 */
 @media (max-width: 768px) {
   .animal-review-container {
-    padding: 16px;
+    padding: 16px 16px 16px 28px;
     border-radius: 16px;
   }
   
@@ -1017,11 +1211,195 @@ watch(() => props.animal.id, () => {
 
   .comment-item {
     padding: 12px;
+    margin-bottom: 18px;
   }
 
   .comment-content, .comment-footer {
     padding-left: 0;
     margin-top: 8px;
   }
+  
+  .image-zoom-modal {
+    padding: 20px 20px 20px 30px;
+    border-left-width: 15px;
+    max-width: 95vw;
+  }
+  .zoom-image-container {
+    max-height: 50vh;
+  }
+  .zoom-image-container img {
+    max-height: 50vh;
+  }
+}
+
+/* 图片放大遮罩层 */
+.image-zoom-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* 图片放大弹窗主体 (复用手账本风格) */
+.image-zoom-modal {
+  position: relative;
+  background: linear-gradient(180deg, #FDFDF7 0%, #FAF7EE 100%);
+  border-radius: 24px;
+  /* 左侧书脊：深绿色皮质/麻布书脊 */
+  border-left: 20px solid #558B2F;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 3px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2), inset 5px 0 10px rgba(0, 0, 0, 0.03);
+  padding: 30px 30px 30px 45px;
+  max-width: 90vw;
+  max-height: 90vh;
+  box-sizing: border-box;
+  animation: modal-enter 0.3s ease-out;
+}
+
+/* 缝合线效果 */
+.image-zoom-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 0;
+  border-left: 2px dashed rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+/* 放大弹窗内的拍立得卡片 */
+.zoom-polaroid {
+  background: #ffffff;
+  padding: 16px 16px 28px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  transform: rotate(1.5deg);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.zoom-polaroid:hover {
+  transform: rotate(0deg);
+}
+
+.zoom-polaroid-tape {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 80px;
+  height: 24px;
+  background: rgba(255, 213, 79, 0.5);
+  border: 1px dashed rgba(0, 0, 0, 0.06);
+  z-index: 5;
+}
+
+.zoom-image-container {
+  max-width: 100%;
+  max-height: 60vh;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: #fdfdfd;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.zoom-image-container img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  display: block;
+}
+
+.zoom-caption {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.zoom-caption h3 {
+  font-family: inherit;
+  font-size: 1.5rem;
+  color: #3E2723;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+/* 关闭按钮 */
+.close-zoom-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  color: #666;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.close-zoom-btn:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  transform: rotate(90deg);
+}
+
+/* 动效 */
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.9) rotate(-2deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Zoom Transition */
+.zoom-fade-enter-active,
+.zoom-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.zoom-fade-enter-from,
+.zoom-fade-leave-to {
+  opacity: 0;
+}
+
+.zoom-fade-enter-active .image-zoom-modal,
+.zoom-fade-leave-active .image-zoom-modal {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.zoom-fade-enter-from .image-zoom-modal {
+  transform: scale(0.9);
+}
+.zoom-fade-leave-to .image-zoom-modal {
+  transform: scale(0.95);
 }
 </style>

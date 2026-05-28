@@ -39,4 +39,13 @@ public interface IAIProvider {
      * @return AI生成的简介
      */
     String generateAnimalSummary(com.pawtrack.entity.Animal animal, java.util.List<com.pawtrack.entity.LocationLog> logs);
+
+    /**
+     * 根据新特征文本，从大量候选动物中筛选出最匹配的最多4个候选小动物ID (文本预筛选)
+     * @param newFeatures 新特征描述
+     * @param candidates 同类小动物候选列表
+     * @return 筛选后的候选动物ID列表
+     */
+    java.util.List<Long> filterCandidateAnimals(String newFeatures, java.util.List<com.pawtrack.entity.Animal> candidates);
 }
+

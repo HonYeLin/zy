@@ -224,4 +224,67 @@ public class DeepSeekProvider implements IAIProvider {
         }
         return "一只神秘的小动物，还没有人足够了解它呢。";
     }
+
+    @Override
+    public List<Long> filterCandidateAnimals(String newFeatures, List<com.pawtrack.entity.Animal> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        if (candidates.size() <= 4) {
+            List<Long> ids = new java.util.ArrayList<>();
+            for (com.pawtrack.entity.Animal animal : candidates) {
+                ids.add(animal.getId());
+            }
+            return ids;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一个小动物实体文本特征筛选助手。这里有一只新拍摄的动物，其外貌特征描述为：\n");
+        sb.append("- 新特征: ").append(newFeatures).append("\n\n");
+        sb.append("数据库中已有的同类候选小动物列表如下：\n");
+        for (com.pawtrack.entity.Animal animal : candidates) {
+            sb.append("- ID: ").append(animal.getId())
+              .append(", 昵称: ").append(animal.getName())
+              .append(", 特征描述: ").append(animal.getDescription() != null ? animal.getDescription() : "无特征描述")
+              .append("\n");
+        }
+        sb.append("\n请根据特征描述的相似度，从候选列表中筛选出最有可能与这只新动物是同个实体的最多4个候选小动物。\n");
+        sb.append("【要求】：\n");
+        sb.append("1. 只能返回最多4个最匹配的 ID，按可能性从高到低排序，以英文逗号分隔（例如: 1,2,3,4）。\n");
+        sb.append("2. 只能输出这些 ID 的逗号分隔文本，绝对不要包含任何其他文字、解释、前缀、后缀、标点符号或 Markdown 格式。\n");
+        sb.append("3. 如果没有任何可能匹配的，返回空文本即可。");
+
+        try {
+            String result = callDeepSeek(sb.toString());
+            if (result != null) {
+                result = result.trim();
+                System.out.println("DeepSeek 文本预筛选返回结果: " + result);
+                List<Long> matchedIds = new java.util.ArrayList<>();
+                // 逗号分隔解析
+                String[] parts = result.split(",");
+                for (String part : parts) {
+                    String clean = part.replaceAll("[^0-9]", "").trim();
+                    if (!clean.isEmpty()) {
+                        matchedIds.add(Long.parseLong(clean));
+                    }
+                }
+                // 限制最多返回4个
+                if (matchedIds.size() > 4) {
+                    matchedIds = matchedIds.subList(0, 4);
+                }
+                return matchedIds;
+            }
+        } catch (Exception e) {
+            System.err.println("DeepSeek 文本预筛选失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        // 兜底返回前4个
+        List<Long> ids = new java.util.ArrayList<>();
+        for (int i = 0; i < Math.min(candidates.size(), 4); i++) {
+            ids.add(candidates.get(i).getId());
+        }
+        return ids;
+    }
 }
+

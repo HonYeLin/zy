@@ -89,6 +89,29 @@ const handleAuthSubmit = async () => {
 
   isSubmittingAuth.value = true;
   try {
+    // 拦截管理员登录
+    if (authTab.value === 'login' && authForm.value.username.trim() === 'admin') {
+      const res = await fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: authForm.value.username.trim(),
+          password: authForm.value.password.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        sessionStorage.setItem('admin_token', data.token);
+        closeAuthModal();
+        alert('管理员登录成功，正在打开新标签页进入管理系统...');
+        window.open('/admin/dashboard', '_blank');
+        return;
+      } else {
+        authError.value = data.error || '管理员登录失败';
+        return;
+      }
+    }
+
     const endpoint = authTab.value === 'register' ? 'register' : 'login';
     const body = authTab.value === 'register' 
       ? { username: authForm.value.username.trim(), password: authForm.value.password.trim(), nickname: authForm.value.nickname.trim() }
@@ -476,7 +499,9 @@ onUnmounted(() => {
         </svg>
       </div>
       <div class="title-container">
-        <h1>爪印</h1>
+        <div class="title-wrapper">
+          <h1>爪印</h1>
+        </div>
         <p>让校园里的小生命都被温柔看见</p>
       </div>
     </header>
@@ -516,28 +541,29 @@ onUnmounted(() => {
 
         <!-- 右侧信息与控制侧面板 -->
         <div class="side-panel">
-          <section class="actions-section">
-            <h2 class="section-title">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-              </svg>
-              更多功能
-            </h2>
-            <div class="button-grid">
-              <button class="action-btn directory-btn" @click="scrollToDirectory">
-                <span class="icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-                  </svg>
-                </span>
-                <span class="text">动物图鉴</span>
+          <!-- 1. 个人状态/登录卡片置顶 -->
+          <div class="sidebar-card sidebar-auth-card">
+            <div class="user-status-wrapper">
+              <span class="user-status-avatar">👤</span>
+              <div class="user-status-info">
+                <div class="user-status-role" :class="currentUser?.role?.toLowerCase() || 'guest'">
+                  {{ currentUser?.role === 'GUEST' ? '游客模式' : '已登录会员' }}
+                </div>
+                <div class="user-status-nickname">{{ currentUser?.nickname || '游客' }}</div>
+              </div>
+            </div>
+            <div class="sidebar-auth-actions">
+              <button v-if="currentUser?.role === 'GUEST'" class="sidebar-login-btn" @click="openAuthModal('login')">
+                账户登录 / 注册
+              </button>
+              <button v-else class="sidebar-logout-btn" @click="handleLogout">
+                退出登录
               </button>
             </div>
-          </section>
+          </div>
 
-          <!-- 守护统计看板与小常识 -->
-          <section class="stat-section">
+          <!-- 2. 校园守护统计 -->
+          <section class="sidebar-section">
             <h2 class="section-title">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon">
                 <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -546,7 +572,7 @@ onUnmounted(() => {
               </svg>
               校园守护统计
             </h2>
-            <div class="stat-card">
+            <div class="sidebar-card stat-card">
               <div class="stat-item">
                 <span class="stat-val">{{ totalAnimalsCount }}</span>
                 <span class="stat-lbl">建档小生命</span>
@@ -560,33 +586,34 @@ onUnmounted(() => {
                 <span class="stat-lbl">AI 识别率</span>
               </div>
             </div>
+          </section>
 
+          <!-- 3. 快捷功能 -->
+          <section class="sidebar-section">
+            <h2 class="section-title">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-icon">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              快捷功能
+            </h2>
+            <div class="button-grid">
+              <button class="action-btn directory-btn" @click="scrollToDirectory">
+                <span class="icon">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#FF9800" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                  </svg>
+                </span>
+                <span class="text">动物图鉴</span>
+              </button>
+            </div>
+          </section>
 
-
-            <div class="tip-card">
+          <!-- 4. 地图使用引导 -->
+          <section class="sidebar-section">
+            <div class="sidebar-card tip-card">
               <h3>🐾 地图使用引导</h3>
               <p>直接点击地图上的任意空白位置，可在该处悬浮生成一个绿色的临时标记，再次点击绿色标记便能快捷录入新的发现记录。点击右下悬浮爪印，可实现自动定位记录！</p>
-            </div>
-
-            <!-- Sidebar Login / User Status Card -->
-            <div class="sidebar-auth-card">
-              <div class="user-status-wrapper">
-                <span class="user-status-avatar">👤</span>
-                <div class="user-status-info">
-                  <div class="user-status-role" :class="currentUser?.role?.toLowerCase() || 'guest'">
-                    {{ currentUser?.role === 'GUEST' ? '游客模式' : '已登录会员' }}
-                  </div>
-                  <div class="user-status-nickname">{{ currentUser?.nickname || '游客' }}</div>
-                </div>
-              </div>
-              <div class="sidebar-auth-actions">
-                <button v-if="currentUser?.role === 'GUEST'" class="sidebar-login-btn" @click="openAuthModal('login')">
-                  账户登录 / 注册
-                </button>
-                <button v-else class="sidebar-logout-btn" @click="handleLogout">
-                  退出登录
-                </button>
-              </div>
             </div>
           </section>
         </div>
@@ -668,6 +695,11 @@ onUnmounted(() => {
             :class="{ 'is-active-tracking': activeTrackAnimalId === animal.id }"
             @click="handleDirectoryCardClick(animal)"
           >
+            <!-- Active Tooltip -->
+            <div class="active-tooltip-notebook" v-if="activeTrackAnimalId === animal.id">
+              再次点击查看全部记录
+            </div>
+            
             <!-- Left-top corner nickname -->
             <div class="card-nickname">{{ animal.name }}</div>
             
@@ -811,7 +843,7 @@ onUnmounted(() => {
                   <div class="timeline-behavior">
                     <span class="behavior-label-tag" :class="log.behaviorTag.toLowerCase()">{{ log.behaviorLabel }}</span>
                   </div>
-                  <div class="timeline-desc">{{ log.description || '未标记特征描述' }}</div>
+                  <div class="timeline-desc">{{ log.sceneDescription || log.description || '未标记画面描述' }}</div>
                   
                   <!-- If a photo is uploaded, show it -->
                   <div v-if="log.photoUrl" class="timeline-photo">
@@ -1012,6 +1044,11 @@ body, html {
   gap: 0.2rem;
 }
 
+.title-wrapper {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+  display: inline-block;
+}
+
 .title-container h1 {
   margin: 0;
   font-size: 2.6rem; /* Enlarge title for prominent hierarchy */
@@ -1020,7 +1057,10 @@ body, html {
   background: linear-gradient(to right, #ffffff 0%, #E8F5E9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+  line-height: 1.3; /* Fix clipping vertically */
+  padding-bottom: 4px; /* Avoid cutoff on bottom edge */
+  padding-right: 8px; /* Compensation for letter-spacing clipping */
+  display: block;
 }
 
 .title-container p {
@@ -1136,7 +1176,7 @@ body, html {
 }
 
 .ai-calc-btn {
-  background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+  background: linear-gradient(135deg, #7E57C2, #5E35B1);
   color: white !important;
   border: none;
   border-radius: 18px;
@@ -1146,14 +1186,14 @@ body, html {
   justify-content: center;
   gap: 0.8rem;
   cursor: pointer;
-  box-shadow: 0 8px 25px rgba(156, 39, 176, 0.35);
+  box-shadow: 0 6px 20px rgba(94, 53, 177, 0.25);
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   font-family: inherit;
 }
 
 .ai-calc-btn:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(156, 39, 176, 0.45);
+  box-shadow: 0 10px 25px rgba(94, 53, 177, 0.35);
 }
 
 .ai-calc-btn:active {
@@ -1183,17 +1223,30 @@ body, html {
   }
 }
 
+/* 统一的侧边栏卡片基础样式 */
+.sidebar-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.02), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sidebar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(76, 175, 80, 0.08);
+  border-color: rgba(76, 175, 80, 0.25);
+}
+
 /* 统计看板小卡片 */
 .stat-card {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 16px;
   padding: 1.5rem 1rem;
   display: flex;
   justify-content: space-around;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .stat-item {
@@ -1217,15 +1270,18 @@ body, html {
 
 /* 引导提示卡片 */
 .tip-card {
-  background: rgba(255, 255, 255, 0.88); /* Semi-solid background for outstanding readability */
   border-left: 5px solid #388E3C;
-  border-radius: 16px;
-  padding: 1.2rem 1.5rem;
-  box-sizing: border-box;
-  margin-top: 1rem;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section .section-title {
+  margin-bottom: 0.8rem;
+}
+
 
 .tip-card h3 {
   margin: 0 0 0.5rem 0;
@@ -1888,6 +1944,42 @@ body, html {
   transform: translateY(-3px);
 }
 
+.active-tooltip-notebook {
+  position: absolute;
+  top: -16px;
+  right: -10px;
+  background-color: #fff9e6;
+  border: 1px solid #ffd54f;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: #795548;
+  font-size: 0.8rem;
+  font-weight: bold;
+  box-shadow: 1px 2px 5px rgba(0,0,0,0.1);
+  z-index: 10;
+  pointer-events: none;
+  animation: float-tooltip 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+.active-tooltip-notebook::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 24px;
+  height: 10px;
+  background-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+@keyframes float-tooltip {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
 .card-nickname {
   position: absolute;
   top: 12px;
@@ -2127,13 +2219,6 @@ body, html {
 
 /* --- Sidebar Auth Card Styles --- */
 .sidebar-auth-card {
-  background: rgba(255, 255, 255, 0.88);
-  border-radius: 16px;
-  padding: 1.2rem;
-  margin-top: 1rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
   display: flex;
   flex-direction: column;
   gap: 0.8rem;

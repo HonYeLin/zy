@@ -5,32 +5,21 @@ import axios from 'axios';
 
 const router = useRouter();
 const isLoggedIn = ref(false);
-const authForm = ref({ username: '', password: '' });
-const authError = ref('');
 
 onMounted(() => {
-  const token = localStorage.getItem('admin_token');
+  const token = sessionStorage.getItem('admin_token');
   if (token) {
     isLoggedIn.value = true;
+  } else {
+    router.push('/');
   }
 });
-
-const handleLogin = async () => {
-  try {
-    const res = await axios.post('/api/admin/auth/login', authForm.value);
-    localStorage.setItem('admin_token', res.data.token);
-    isLoggedIn.value = true;
-    authError.value = '';
-  } catch (error: any) {
-    authError.value = error.response?.data?.error || '登录失败';
-  }
-};
 
 const handleLogout = async () => {
   try {
     await axios.post('/api/admin/auth/logout');
   } catch (e) {}
-  localStorage.removeItem('admin_token');
+  sessionStorage.removeItem('admin_token');
   isLoggedIn.value = false;
   router.push('/');
 };
@@ -80,24 +69,8 @@ const handleLogout = async () => {
       </div>
     </main>
   </div>
-
-  <div class="admin-login-wrapper" v-else>
-    <div class="admin-login-box">
-      <div class="login-logo">🐾</div>
-      <h2>后台登录</h2>
-      <p class="login-subtitle">请使用您的管理凭证安全登录</p>
-      <div class="login-error" v-if="authError">{{ authError }}</div>
-      <div class="form-group">
-        <input type="text" v-model="authForm.username" placeholder="管理员账号" />
-      </div>
-      <div class="form-group">
-        <input type="password" v-model="authForm.password" placeholder="密码" @keyup.enter="handleLogin" />
-      </div>
-      <button @click="handleLogin" class="admin-login-btn">
-        登录系统
-      </button>
-      <router-link to="/" class="back-link">返回前台</router-link>
-    </div>
+  <div class="admin-unauthorized" v-else>
+    <p>未授权，正在返回首页...</p>
   </div>
 </template>
 
@@ -157,7 +130,7 @@ const handleLogout = async () => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  color: #94a3b8;
+  color: #cbd5e1;
   text-decoration: none;
   border-radius: 8px;
   font-weight: 500;
@@ -167,7 +140,7 @@ const handleLogout = async () => {
 .nav-icon {
   width: 20px;
   height: 20px;
-  opacity: 0.7;
+  opacity: 0.85;
   transition: opacity 0.3s ease;
 }
 
@@ -235,7 +208,7 @@ const handleLogout = async () => {
 
 .welcome-text {
   font-weight: 500;
-  color: #64748b;
+  color: #334155;
 }
 
 .back-home-btn {
@@ -261,8 +234,9 @@ const handleLogout = async () => {
 }
 
 .admin-content {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
+  width: 100%;
 }
 
 /* Login box styles */

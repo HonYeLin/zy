@@ -99,7 +99,16 @@ public class LocationLogService {
             }
             
             // B. 如果精确匹配没有找到实体，我们才进行 Gemini AI 特征识别比对
-            if (animal == null) {
+            boolean shouldMatch = true;
+            if (request.getSkipAiMatch() != null && request.getSkipAiMatch()) {
+                shouldMatch = false;
+                System.out.println("====== skipAiMatch=true, 跳过后台二次 AI 文本比对 ======");
+            } else if (request.getPhotoUrl() != null && !request.getPhotoUrl().isEmpty()) {
+                shouldMatch = false;
+                System.out.println("====== 上传了照片，跳过后台二次 AI 文本比对 ======");
+            }
+
+            if (animal == null && shouldMatch) {
                 List<Animal> sameBreedAnimals = animalRepository.findByBreed(type);
                 Long matchedId = aiProvider.matchExistingAnimal(type, features, sameBreedAnimals);
                 
@@ -116,6 +125,7 @@ public class LocationLogService {
                     }
                 }
             }
+
             
             // C. 如果依然没有匹配到任何实体，则新建一个
             if (animal == null) {
@@ -241,8 +251,8 @@ public class LocationLogService {
 
         // 4. 使用 EntityManager 执行原生 SQL 进行空间 Point 数据的插入 (SRID 4326, 坐标顺序为 latitude, longitude)
         entityManager.createNativeQuery(
-            "INSERT INTO animal_logs (animal_id, user_id, location, behavior_tag, photo_url, description, recorded_at) " +
-            "VALUES (:animalId, :userId, ST_GeomFromText(:wkt, 4326), :behaviorTag, :photoUrl, :description, :recordedAt)"
+            "INSERT INTO animal_logs (animal_id, user_id, location, behavior_tag, photo_url, description, scene_description, recorded_at) " +
+            "VALUES (:animalId, :userId, ST_GeomFromText(:wkt, 4326), :behaviorTag, :photoUrl, :description, :sceneDescription, :recordedAt)"
         )
         .setParameter("animalId", animal.getId())
         .setParameter("userId", null) // 游客模式
@@ -250,6 +260,7 @@ public class LocationLogService {
         .setParameter("behaviorTag", behaviorTag.name())
         .setParameter("photoUrl", finalPhotoUrl)
         .setParameter("description", features)
+        .setParameter("sceneDescription", request.getSceneDescription())
         .setParameter("recordedAt", recordedAt)
         .executeUpdate();
 
@@ -266,26 +277,66 @@ public class LocationLogService {
         log.setPhotoUrl(finalPhotoUrl);
         log.setRecordedAt(recordedAt);
 
-        // 6. 异步后台生成 AI 生活记录日记，免去对主线程的 IO 阻塞
-        generateNarrativeAsync(animal.getId(), animal.getBreed());
-
-        // 异步后台生成 AI 行为总结简介
+        // 6. 异步后台生成 AI 生活记录日记与 AI 行为总结简介
+        // 必须在事务提交后执行，否则异步线程可能读不到刚插入的打卡数据，也可能由于并发读取和保存 Animal 实体，覆盖掉刚才设置的 avatar_url
         final Long finalAnimalId = animal.getId();
-        CompletableFuture.runAsync(() -> {
-            try {
-                analysisService.updateAnimalSummary(finalAnimalId);
-            } catch (Exception e) {
-                System.err.println("更新动物 AI 简介失败: " + e.getMessage());
-            }
-        });
-
-        // 异步后台触发 AI 头像自动甄选
-        if (finalPhotoUrl != null && !finalPhotoUrl.trim().isEmpty() && !finalPhotoUrl.contains("/images/unclassified/")) {
-            final String photoUrlForAvatar = finalPhotoUrl;
-            final Animal animalForAvatar = animal;
+        final String finalAnimalBreed = animal.getBreed();
+        
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        generateNarrativeAsync(finalAnimalId, finalAnimalBreed);
+                        CompletableFuture.runAsync(() -> {
+                            try {
+                                analysisService.updateAnimalSummary(finalAnimalId);
+                            } catch (Exception e) {
+                                System.err.println("更新动物 AI 简介失败: " + e.getMessage());
+                            }
+                        });
+                    }
+                }
+            );
+        } else {
+            generateNarrativeAsync(finalAnimalId, finalAnimalBreed);
             CompletableFuture.runAsync(() -> {
-                evaluateAndSelectAvatar(animalForAvatar, photoUrlForAvatar);
+                try {
+                    analysisService.updateAnimalSummary(finalAnimalId);
+                } catch (Exception e) {
+                    System.err.println("更新动物 AI 简介失败: " + e.getMessage());
+                }
             });
+        }
+        // 8. 触发头像更新：如果是第一次记录，直接同步设置头像，无需AI对比，提高响应速度并确保事务一致
+        if (finalPhotoUrl != null && !finalPhotoUrl.trim().isEmpty() && !finalPhotoUrl.contains("/images/unclassified/")) {
+            if (animal.getAvatarUrl() == null || animal.getAvatarUrl().trim().isEmpty()) {
+                animal.setAvatarUrl(finalPhotoUrl);
+                animal = animalRepository.save(animal);
+                System.out.println("====== 同步设置初始头像: " + animal.getName() + " -> " + finalPhotoUrl + " ======");
+            } else {
+                // 如果已有头像，且新老头像不同，才在事务提交后异步进行AI头像甄选对比
+                if (!animal.getAvatarUrl().equals(finalPhotoUrl)) {
+                    final Long animalId = animal.getId();
+                    final String photoUrlForAvatar = finalPhotoUrl;
+                    if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+                        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                            new org.springframework.transaction.support.TransactionSynchronization() {
+                                @Override
+                                public void afterCommit() {
+                                    CompletableFuture.runAsync(() -> {
+                                        evaluateAndSelectAvatar(animalId, photoUrlForAvatar);
+                                    });
+                                }
+                            }
+                        );
+                    } else {
+                        CompletableFuture.runAsync(() -> {
+                            evaluateAndSelectAvatar(animalId, photoUrlForAvatar);
+                        });
+                    }
+                }
+            }
         }
 
         return log;
@@ -336,16 +387,24 @@ public class LocationLogService {
                 } else {
                     sb.append("(暂无历史记录)\n");
                 }
+                String latestDesc = latestLog.getSceneDescription() != null && !latestLog.getSceneDescription().isEmpty() 
+                    ? latestLog.getSceneDescription() 
+                    : (latestLog.getDescription() != null ? latestLog.getDescription() : "无");
+
                 sb.append("\n【本次新观察到的活动】:\n");
                 sb.append("- 观察时间: ").append(latestLog.getRecordedAt()).append("\n");
                 sb.append("- 行为状态: ").append(latestLog.getBehaviorLabel()).append("\n");
-                sb.append("- 环境/特征描述: ").append(latestLog.getDescription() != null ? latestLog.getDescription() : "无").append("\n\n");
+                sb.append("- 画面环境行为描述: ").append(latestDesc).append("\n\n");
                 
                 if (previousLog != null) {
+                    String previousDesc = previousLog.getSceneDescription() != null && !previousLog.getSceneDescription().isEmpty() 
+                        ? previousLog.getSceneDescription() 
+                        : (previousLog.getDescription() != null ? previousLog.getDescription() : "无");
+
                     sb.append("【上次观察到的活动】:\n");
                     sb.append("- 观察时间: ").append(previousLog.getRecordedAt()).append("\n");
                     sb.append("- 行为状态: ").append(previousLog.getBehaviorLabel()).append("\n");
-                    sb.append("- 环境/特征描述: ").append(previousLog.getDescription() != null ? previousLog.getDescription() : "无").append("\n\n");
+                    sb.append("- 画面环境行为描述: ").append(previousDesc).append("\n\n");
                 }
                 
                 sb.append("【写作要求】:\n");
@@ -400,8 +459,14 @@ public class LocationLogService {
     /**
      * 自动使用 AI 挑选具有代表性的动物头像照片，如果当前头像不存在直接绑定，如果存在则利用 Qwen-VL-Max 进行两图对比并异步更新
      */
-    public void evaluateAndSelectAvatar(Animal animal, String newPhotoUrl) {
+    public void evaluateAndSelectAvatar(Long animalId, String newPhotoUrl) {
         try {
+            java.util.Optional<Animal> optAnimal = animalRepository.findById(animalId);
+            if (!optAnimal.isPresent()) {
+                return;
+            }
+            Animal animal = optAnimal.get();
+
             // 1. 如果当前没有头像，则直接设置新照片为头像
             if (animal.getAvatarUrl() == null || animal.getAvatarUrl().trim().isEmpty()) {
                 animal.setAvatarUrl(newPhotoUrl);

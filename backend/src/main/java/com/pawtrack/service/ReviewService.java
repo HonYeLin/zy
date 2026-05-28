@@ -84,9 +84,15 @@ public class ReviewService {
     }
 
     public AnimalRating addRating(RatingRequest request) {
-        AnimalRating rating = new AnimalRating();
-        rating.setAnimalId(request.getAnimalId());
-        rating.setUserId(request.getUserId());
+        AnimalRating rating = null;
+        if (request.getUserId() != null) {
+            rating = ratingRepository.findByAnimalIdAndUserId(request.getAnimalId(), request.getUserId());
+        }
+        if (rating == null) {
+            rating = new AnimalRating();
+            rating.setAnimalId(request.getAnimalId());
+            rating.setUserId(request.getUserId());
+        }
         rating.setAppearanceScore(request.getAppearanceScore());
         rating.setTemperScore(request.getTemperScore());
         rating.setVisibilityScore(request.getVisibilityScore());

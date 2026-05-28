@@ -100,7 +100,7 @@ onMounted(() => {
 
 .subtitle {
   margin: 0;
-  color: #64748b;
+  color: #475569;
   font-size: 15px;
 }
 
@@ -134,7 +134,7 @@ onMounted(() => {
 
 .admin-table th {
   background: #f8fafc;
-  color: #64748b;
+  color: #475569;
   font-weight: 600;
   font-size: 13px;
   text-transform: uppercase;
@@ -150,7 +150,7 @@ onMounted(() => {
 }
 
 .col-id {
-  color: #94a3b8;
+  color: #64748b;
   font-family: monospace;
 }
 
@@ -203,7 +203,7 @@ onMounted(() => {
 }
 
 .col-time {
-  color: #64748b;
+  color: #475569;
   font-size: 13px;
 }
 
@@ -227,7 +227,7 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 48px !important;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .empty-icon {
