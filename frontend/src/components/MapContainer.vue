@@ -668,7 +668,6 @@ const trajectoryLineColor = computed(() => {
                 type="file" 
                 ref="cameraInput" 
                 accept="image/*" 
-                capture="environment" 
                 style="display: none" 
                 @change="handlePhotoCapture" 
               />

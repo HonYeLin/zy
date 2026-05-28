@@ -317,6 +317,10 @@ const likeComment = async (commentId: number) => {
 };
 
 const deleteComment = async (commentId: number) => {
+  if (!props.currentUser || !props.currentUser.id) {
+    alert('删除失败，未能获取用户信息。');
+    return;
+  }
   if (!confirm('确认要删除这条留言吗？')) return;
   try {
     const res = await fetch(`/api/reviews/comments/${commentId}?userId=${props.currentUser.id}`, {
