@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axios from 'axios';
 import MapContainer from './components/MapContainer.vue';
+import AnimalReview from './components/AnimalReview.vue';
 
 // Define Interface
 interface Animal {
@@ -13,6 +14,117 @@ interface Animal {
   createdAt?: string;
   aiSummary?: string;
 }
+
+// --- User Account System ---
+const currentUser = ref<any>(null);
+const showAuthModal = ref(false);
+const authTab = ref('login'); // 'login' or 'register'
+const authForm = ref({
+  username: '',
+  password: '',
+  nickname: ''
+});
+const authError = ref('');
+const isSubmittingAuth = ref(false);
+
+const initializeUser = async () => {
+  // 1. Check logged-in user
+  const loggedInUserStr = localStorage.getItem('logged_in_user');
+  if (loggedInUserStr) {
+    try {
+      currentUser.value = JSON.parse(loggedInUserStr);
+      return;
+    } catch (e) {
+      localStorage.removeItem('logged_in_user');
+    }
+  }
+
+  // 2. Fall back to guest device id
+  let deviceId = localStorage.getItem('guest_device_id');
+  if (!deviceId) {
+    deviceId = 'device_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+    localStorage.setItem('guest_device_id', deviceId);
+  }
+
+  // 3. Authenticate guest
+  try {
+    const res = await fetch(`http://localhost:8080/api/users/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestDeviceId: deviceId })
+    });
+    if (res.ok) {
+      currentUser.value = await res.json();
+    }
+  } catch (error) {
+    console.error('Failed to initialize guest user on backend', error);
+    currentUser.value = {
+      id: null,
+      nickname: '游客',
+      role: 'GUEST'
+    };
+  }
+};
+
+const openAuthModal = (tab = 'login') => {
+  authTab.value = tab;
+  authForm.value = { username: '', password: '', nickname: '' };
+  authError.value = '';
+  showAuthModal.value = true;
+};
+
+const closeAuthModal = () => {
+  showAuthModal.value = false;
+};
+
+const handleAuthSubmit = async () => {
+  authError.value = '';
+  if (!authForm.value.username.trim() || !authForm.value.password.trim()) {
+    authError.value = '用户名和密码不能为空';
+    return;
+  }
+  if (authTab.value === 'register' && !authForm.value.nickname.trim()) {
+    authForm.value.nickname = authForm.value.username.trim();
+  }
+
+  isSubmittingAuth.value = true;
+  try {
+    const endpoint = authTab.value === 'register' ? 'register' : 'login';
+    const body = authTab.value === 'register' 
+      ? { username: authForm.value.username.trim(), password: authForm.value.password.trim(), nickname: authForm.value.nickname.trim() }
+      : { username: authForm.value.username.trim(), password: authForm.value.password.trim() };
+
+    const res = await fetch(`http://localhost:8080/api/users/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('logged_in_user', JSON.stringify(data));
+      currentUser.value = data;
+      closeAuthModal();
+      alert(authTab.value === 'register' ? '注册并登录成功！' : '登录成功！');
+    } else {
+      authError.value = data.error || '操作失败';
+    }
+  } catch (error) {
+    console.error('Auth error', error);
+    authError.value = '无法连接到服务器';
+  } finally {
+    isSubmittingAuth.value = false;
+  }
+};
+
+const handleLogout = async () => {
+  if (confirm('确认要退出登录吗？')) {
+    localStorage.removeItem('logged_in_user');
+    currentUser.value = null;
+    await initializeUser(); // reload guest
+  }
+};
+
 
 // Global Stats & Animals list
 const animals = ref<Animal[]>([]);
@@ -334,6 +446,7 @@ const handleImageLoadError = (event: any, animal: Animal) => {
 let statsIntervalId: any = null;
 
 onMounted(() => {
+  initializeUser(); // Initialize user account system
   fetchAnimals();
   fetchLogsCount();
   
@@ -454,9 +567,42 @@ onUnmounted(() => {
               <h3>🐾 地图使用引导</h3>
               <p>直接点击地图上的任意空白位置，可在该处悬浮生成一个绿色的临时标记，再次点击绿色标记便能快捷录入新的发现记录。点击右下悬浮爪印，可实现自动定位记录！</p>
             </div>
+
+            <!-- Sidebar Login / User Status Card -->
+            <div class="sidebar-auth-card">
+              <div class="user-status-wrapper">
+                <span class="user-status-avatar">👤</span>
+                <div class="user-status-info">
+                  <div class="user-status-role" :class="currentUser?.role?.toLowerCase() || 'guest'">
+                    {{ currentUser?.role === 'GUEST' ? '游客模式' : '已登录会员' }}
+                  </div>
+                  <div class="user-status-nickname">{{ currentUser?.nickname || '游客' }}</div>
+                </div>
+              </div>
+              <div class="sidebar-auth-actions">
+                <button v-if="currentUser?.role === 'GUEST'" class="sidebar-login-btn" @click="openAuthModal('login')">
+                  账户登录 / 注册
+                </button>
+                <button v-else class="sidebar-logout-btn" @click="handleLogout">
+                  退出登录
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       </div>
+
+      <!-- 评论留言打分界面 -->
+      <Transition name="fade-slide">
+        <AnimalReview 
+          v-if="selectedAnimal" 
+          :animal="selectedAnimal" 
+          :current-user="currentUser" 
+          @open-auth="openAuthModal" 
+          @logout="handleLogout" 
+          @close="closeDiary" 
+        />
+      </Transition>
 
       <!-- 生活日记 (Life Diary) - 放置在分栏下方，真正全屏独占一横栏 -->
       <Transition name="fade-slide">
@@ -684,6 +830,83 @@ onUnmounted(() => {
     <div v-if="showToast" class="toast-notification">
       {{ toastMessage }}
     </div>
+
+    <!-- 登录注册模态弹窗 -->
+    <Transition name="auth-fade">
+      <div v-if="showAuthModal" class="auth-modal-overlay" @click.self="closeAuthModal">
+        <div class="auth-modal-card">
+          <button class="close-auth-btn" @click="closeAuthModal">×</button>
+          
+          <div class="auth-tabs">
+            <div 
+              class="auth-tab-item" 
+              :class="{ active: authTab === 'login' }" 
+              @click="authTab = 'login'"
+            >
+              账户登录
+            </div>
+            <div 
+              class="auth-tab-item" 
+              :class="{ active: authTab === 'register' }" 
+              @click="authTab = 'register'"
+            >
+              新用户注册
+            </div>
+          </div>
+
+          <div class="auth-form-body">
+            <div v-if="authError" class="auth-error-msg">
+              ⚠️ {{ authError }}
+            </div>
+
+            <div class="auth-form-group">
+              <label>用户名</label>
+              <input 
+                type="text" 
+                v-model="authForm.username" 
+                placeholder="请输入用户名" 
+                class="auth-input"
+                @keyup.enter="handleAuthSubmit"
+              />
+            </div>
+
+            <div class="auth-form-group">
+              <label>密码</label>
+              <input 
+                type="password" 
+                v-model="authForm.password" 
+                placeholder="请输入密码" 
+                class="auth-input"
+                @keyup.enter="handleAuthSubmit"
+              />
+            </div>
+
+            <div class="auth-form-group" v-if="authTab === 'register'">
+              <label>昵称</label>
+              <input 
+                type="text" 
+                v-model="authForm.nickname" 
+                placeholder="起个好听的名字 (选填)" 
+                class="auth-input"
+                @keyup.enter="handleAuthSubmit"
+              />
+            </div>
+
+            <button 
+              class="auth-submit-btn" 
+              @click="handleAuthSubmit" 
+              :disabled="isSubmittingAuth"
+            >
+              {{ isSubmittingAuth ? '提交中...' : (authTab === 'login' ? '登 录' : '注 册 并 登 录') }}
+            </button>
+            
+            <div class="auth-modal-footer">
+              <span class="continue-guest-link" @click="closeAuthModal">继续以游客身份浏览</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -826,15 +1049,16 @@ body, html {
 
 .section-title {
   font-size: 1.2rem;
-  color: #558B2F; /* Deep olive green */
+  color: #1B5E20; /* Darker green for high readability */
   margin-top: 0;
   margin-bottom: 1.2rem;
-  font-weight: 700;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-bottom: 2px solid rgba(85, 139, 47, 0.15);
+  border-bottom: 2px solid rgba(27, 94, 32, 0.22);
   padding-bottom: 8px;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 1px rgba(255, 255, 255, 0.65); /* Glow shadow to stand out against background */
 }
 
 .inline-icon {
@@ -994,28 +1218,31 @@ body, html {
 
 /* 引导提示卡片 */
 .tip-card {
-  background: linear-gradient(135deg, rgba(129, 199, 132, 0.12), rgba(129, 199, 132, 0.05));
-  border-left: 4px solid #81C784;
+  background: rgba(255, 255, 255, 0.88); /* Semi-solid background for outstanding readability */
+  border-left: 5px solid #388E3C;
   border-radius: 16px;
   padding: 1.2rem 1.5rem;
   box-sizing: border-box;
   margin-top: 1rem;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
 
 .tip-card h3 {
   margin: 0 0 0.5rem 0;
   font-size: 0.95rem;
-  color: #2E7D32;
-  font-weight: 700;
+  color: #1B5E20; /* Darker green */
+  font-weight: 800;
   display: flex;
   align-items: center;
 }
 
 .tip-card p {
   margin: 0;
-  font-size: 0.82rem;
-  color: #4B6E4B;
+  font-size: 0.84rem;
+  color: #2E4C2E; /* Much darker green for strong contrast */
   line-height: 1.6;
+  font-weight: 500;
 }
 
 /* 生活日记 (Life Diary) 便签风格 UI Styles */
@@ -1897,5 +2124,286 @@ body, html {
 .timeline-photo img {
   width: 100%;
   display: block;
+}
+
+/* --- Sidebar Auth Card Styles --- */
+.sidebar-auth-card {
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 16px;
+  padding: 1.2rem;
+  margin-top: 1rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.user-status-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.user-status-avatar {
+  width: 40px;
+  height: 40px;
+  background: rgba(85, 139, 47, 0.1);
+  color: #558B2F;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.user-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.user-status-role {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.user-status-role.guest {
+  background: rgba(102, 102, 102, 0.1);
+  color: #666;
+}
+
+.user-status-role.user {
+  background: rgba(25, 118, 210, 0.1);
+  color: #1976D2;
+}
+
+.user-status-nickname {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.sidebar-auth-actions {
+  display: flex;
+  width: 100%;
+}
+
+.sidebar-login-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #4CAF50, #2E7D32);
+  color: white !important;
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+
+.sidebar-login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(46, 125, 50, 0.3);
+}
+
+.sidebar-logout-btn {
+  width: 100%;
+  background: #fff;
+  color: #d93025 !important;
+  border: 1px solid #fad2cf;
+  border-radius: 10px;
+  padding: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+
+.sidebar-logout-btn:hover {
+  background: #fce8e6;
+  border-color: #d93025;
+}
+
+/* --- Auth Modal Overlay & Card Styles --- */
+.auth-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.auth-modal-card {
+  background: rgba(255, 255, 255, 0.95);
+  width: 100%;
+  max-width: 380px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: modal-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-pop {
+  from {
+    transform: scale(0.9) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.close-auth-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s;
+  line-height: 1;
+  z-index: 10;
+}
+
+.close-auth-btn:hover {
+  color: #333;
+}
+
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.auth-tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 15px 0;
+  cursor: pointer;
+  font-weight: bold;
+  color: #666;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+}
+
+.auth-tab-item:hover {
+  color: #1976d2;
+}
+
+.auth-tab-item.active {
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+  background: #fff;
+}
+
+.auth-form-body {
+  padding: 25px;
+}
+
+.auth-error-msg {
+  background: #fce8e6;
+  color: #c5221f;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 0.9em;
+  border: 1px solid #fad2cf;
+  text-align: left;
+}
+
+.auth-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.auth-form-group label {
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #666;
+}
+
+.auth-input {
+  padding: 10px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 0.95em;
+  transition: border-color 0.2s;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: #1976d2;
+  color: white !important;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1em;
+  margin-top: 10px;
+  transition: background 0.2s;
+  font-family: inherit;
+}
+
+.auth-submit-btn:hover {
+  background: #1565c0;
+}
+
+.auth-submit-btn:disabled {
+  background: #90caf9;
+  cursor: not-allowed;
+}
+
+.auth-modal-footer {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 0.85em;
+}
+
+.continue-guest-link {
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.continue-guest-link:hover {
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+/* 动效 */
+.auth-fade-enter-active, .auth-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.auth-fade-enter-from, .auth-fade-leave-to {
+  opacity: 0;
 }
 </style>
