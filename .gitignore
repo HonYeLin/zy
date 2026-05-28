@@ -18,6 +18,8 @@ target/
 *.log
 .system_generated/
 .gemini/
+application-local.yml
+.local-configs/
 
 # System files
 .DS_Store

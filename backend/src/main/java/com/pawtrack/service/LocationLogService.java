@@ -172,7 +172,7 @@ public class LocationLogService {
             recordedAt = recordedAt.minusMinutes(offset);
         }
 
-        // 3.5. 处理照片重命名与转移 (将临时照片重命名为 唯一标识id+上传时间 并移至正式照片目录分类文件夹中)
+        // 3.5. 处理照片重命名与转移 (将临时照片重命名并移至正式照片目录分类文件夹中)
         String finalPhotoUrl = request.getPhotoUrl();
         if (finalPhotoUrl != null && finalPhotoUrl.contains("/images/unclassified/")) {
             try {
@@ -184,12 +184,10 @@ public class LocationLogService {
                     baseDir = new File(baseDir, "backend");
                 }
                 
-                File sourceTempFile = new File(baseDir, "src/main/resources/static/images/unclassified/" + tempFilename);
-                File targetTempFile = new File(baseDir, "target/classes/static/images/unclassified/" + tempFilename);
+                File uploadsDir = new File(baseDir, "uploads/images");
+                File tempFile = new File(uploadsDir, "unclassified/" + tempFilename);
                 
-                File tempFileToUse = sourceTempFile.exists() ? sourceTempFile : (targetTempFile.exists() ? targetTempFile : null);
-                
-                if (tempFileToUse != null) {
+                if (tempFile.exists()) {
                     String ext = "";
                     if (tempFilename.contains(".")) {
                         ext = tempFilename.substring(tempFilename.lastIndexOf("."));
@@ -201,27 +199,39 @@ public class LocationLogService {
                     // 唯一标识结构为 "种类-该实体唯一ID"
                     String targetFilename = animal.getQrCodeId() + "_" + timestamp + ext;
                     
-                    // 照片分类文件夹管理，一个唯一ID一个文件夹
-                    File sourceDestFile = new File(baseDir, "src/main/resources/static/images/" + animal.getQrCodeId() + "/" + targetFilename);
-                    File targetDestFile = new File(baseDir, "target/classes/static/images/" + animal.getQrCodeId() + "/" + targetFilename);
-                    
-                    // 确保目标父文件夹存在
-                    if (!sourceDestFile.getParentFile().exists()) {
-                        sourceDestFile.getParentFile().mkdirs();
+                    File animalDir = new File(uploadsDir, animal.getQrCodeId());
+                    if (!animalDir.exists()) {
+                        animalDir.mkdirs();
                     }
-                    if (!targetDestFile.getParentFile().exists()) {
-                        targetDestFile.getParentFile().mkdirs();
+                    File destFile;
+                    String relativeUrl;
+                    
+                    // 通过数据库历史记录判断是新实体还是已有实体（而非依赖文件夹是否存在）
+                    List<LocationLog> existingLogs = locationLogRepository.findByAnimalIdOrderByRecordedAtDesc(animal.getId());
+                    boolean isNewEntity = (existingLogs == null || existingLogs.isEmpty());
+                    
+                    if (isNewEntity) {
+                        // 若为新实体（数据库中尚无任何打卡记录），照片直接存放在实体根目录下
+                        destFile = new File(animalDir, targetFilename);
+                        relativeUrl = "/images/" + animal.getQrCodeId() + "/" + targetFilename;
+                        System.out.println("====== 新实体创建图片存储文件夹: " + animalDir.getAbsolutePath() + " ======");
+                    } else {
+                        // 若已有存储该实体图片的文件夹（数据库中已有历史记录），则分类（按行为）存储
+                        String category = (behaviorTag != null) ? behaviorTag.name().toLowerCase() : "other";
+                        File categoryDir = new File(animalDir, category);
+                        if (!categoryDir.exists()) {
+                            categoryDir.mkdirs();
+                        }
+                        destFile = new File(categoryDir, targetFilename);
+                        relativeUrl = "/images/" + animal.getQrCodeId() + "/" + category + "/" + targetFilename;
+                        System.out.println("====== 已有实体分类存储图片: " + destFile.getAbsolutePath() + " ======");
                     }
                     
-                    // 拷贝至正式图片文件夹 (src & target)
-                    java.nio.file.Files.copy(tempFileToUse.toPath(), sourceDestFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    java.nio.file.Files.copy(tempFileToUse.toPath(), targetDestFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    
-                    // 删除临时文件夹中的照片
-                    java.nio.file.Files.deleteIfExists(sourceTempFile.toPath());
-                    java.nio.file.Files.deleteIfExists(targetTempFile.toPath());
-                    
-                    finalPhotoUrl = "http://localhost:8080/images/" + animal.getQrCodeId() + "/" + targetFilename;
+                    // 移动文件
+                    java.nio.file.Files.move(tempFile.toPath(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    finalPhotoUrl = relativeUrl;
+                } else {
+                    System.err.println("未找到临时上传的图片文件: " + tempFile.getAbsolutePath());
                 }
             } catch (Exception e) {
                 System.err.println("照片转移及重命名失败: " + e.getMessage());
@@ -360,7 +370,7 @@ public class LocationLogService {
                     narrative.setStartTime(allLogs.get(allLogs.size() - 1).getRecordedAt()); // 最早的时间
                     narrative.setEndTime(allLogs.get(0).getRecordedAt()); // 最新的时间
                     narrative.setSummaryType("DAILY");
-                    narrative.setModelVersion("gemini-flash-latest");
+                    narrative.setModelVersion("deepseek-v4-pro");
                     narrative.setTokenUsage(0);
                     
                     animalLifeNarrativeRepository.save(narrative);
@@ -514,13 +524,13 @@ public class LocationLogService {
         if (!userDir.endsWith("backend")) {
             baseDir = new File(baseDir, "backend");
         }
+        File file = new File(baseDir, "uploads/images/" + relativePath);
+        if (file.exists()) {
+            return file;
+        }
         File srcFile = new File(baseDir, "src/main/resources/static/images/" + relativePath);
         if (srcFile.exists()) {
             return srcFile;
-        }
-        File targetFile = new File(baseDir, "target/classes/static/images/" + relativePath);
-        if (targetFile.exists()) {
-            return targetFile;
         }
         return null;
     }

@@ -6,7 +6,7 @@
       <!-- 左侧：图鉴样式 -->
       <div class="encyclopedia-side">
         <div class="encyclopedia-card">
-          <img v-if="animal.avatarUrl" :src="animal.avatarUrl" class="animal-avatar" alt="avatar" />
+          <img v-if="animal.avatarUrl" :src="animal.avatarUrl.replace('http://localhost:8080', '')" class="animal-avatar" alt="avatar" />
           <div class="animal-info">
             <h3 class="animal-name">{{ animal.name }}</h3>
             <!-- 去掉 breed 品种显示 -->

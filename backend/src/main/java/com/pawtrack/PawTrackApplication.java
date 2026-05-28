@@ -15,7 +15,7 @@ public class PawTrackApplication {
     }
 
     @Bean
-    public CommandLineRunner initData(AnimalRepository animalRepository) {
+    public CommandLineRunner initData(AnimalRepository animalRepository, com.pawtrack.repository.UserRepository userRepository) {
         return args -> {
             if (animalRepository.count() == 0) {
                 Animal animal = new Animal();
@@ -23,6 +23,17 @@ public class PawTrackApplication {
                 animal.setBreed("Cat");
                 animalRepository.save(animal);
                 System.out.println("====== 测试数据 '大橘' 初始化成功！ ======");
+            }
+            if (userRepository.findByUsername("admin").isEmpty()) {
+                com.pawtrack.entity.User admin = new com.pawtrack.entity.User();
+                admin.setUsername("admin");
+                admin.setNickname("超级管理员");
+                admin.setRole("ADMIN");
+                String salt = com.pawtrack.util.PasswordUtil.generateSalt();
+                admin.setSalt(salt);
+                admin.setPassword(com.pawtrack.util.PasswordUtil.hashPassword("admin123", salt));
+                userRepository.save(admin);
+                System.out.println("====== 测试数据 '超级管理员(admin/admin123)' 初始化成功！ ======");
             }
         };
     }

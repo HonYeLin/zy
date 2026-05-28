@@ -11,19 +11,61 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class GeminiProvider implements IAIProvider {
+public class DeepSeekProvider implements IAIProvider {
 
-    @Value("${ai.gemini.api-key}")
+    @Value("${ai.deepseek.api-key}")
     private String apiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    private String callDeepSeek(String prompt) {
+        String url = "https://api.deepseek.com/chat/completions";
+
+        Map<String, Object> requestBody = Map.of(
+            "model", "deepseek-v4-pro",
+            "messages", List.of(
+                Map.of("role", "user", "content", prompt)
+            ),
+            "thinking", Map.of("type", "enabled"),
+            "reasoning_effort", "high",
+            "stream", false
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + apiKey);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+            return extractTextFromResponse(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "推理失败：" + e.getMessage();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractTextFromResponse(Map<String, Object> response) {
+        try {
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+            if (choices != null && !choices.isEmpty()) {
+                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                if (message != null && message.containsKey("content")) {
+                    return (String) message.get("content");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("解析 DeepSeek 响应失败");
+        }
+        return "无法解析推理结果";
+    }
+
     @Override
     public String reasonBehavior(String context) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
-
         String prompt;
-        if (context.startsWith("你是一个") || context.startsWith("你是一位")) {
+        if (context.startsWith("你是一个") || context.startsWith("你区域") || context.startsWith("你是一位")) {
             prompt = context;
         } else {
             java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -42,44 +84,7 @@ public class GeminiProvider implements IAIProvider {
                     "3. 请直接输出推测结论本身，控制在40-90字之间。";
         }
 
-        // 构建请求体 (符合 Gemini API 的 JSON 结构)
-        Map<String, Object> requestBody = Map.of(
-            "contents", List.of(
-                Map.of("parts", List.of(
-                    Map.of("text", prompt)
-                ))
-            )
-        );
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        try {
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-            return extractTextFromResponse(response);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "推理失败：" + e.getMessage();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private String extractTextFromResponse(Map<String, Object> response) {
-        try {
-            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-            if (candidates != null && !candidates.isEmpty()) {
-                Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-                List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-                if (parts != null && !parts.isEmpty()) {
-                    return (String) parts.get(0).get("text");
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("解析 Gemini 响应失败");
-        }
-        return "无法解析推理结果";
+        return callDeepSeek(prompt);
     }
 
     @Override
@@ -87,27 +92,11 @@ public class GeminiProvider implements IAIProvider {
         if (description == null || description.trim().isEmpty()) {
             return "OTHER";
         }
-        
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
 
-        String prompt = "你是一个动物行为分类器。根据下面提供的小动物特征或当前状态描述，将其分类到以下6个预定义状态标签中的一个。只能返回这6个单词之一（EATING, SLEEPING, PLAYING, SUNBATHING, WALKING, OTHER），不要返回任何其他内容、标点符号或解释说明。\\n\\n描述内容：" + description;
-
-        Map<String, Object> requestBody = Map.of(
-            "contents", List.of(
-                Map.of("parts", List.of(
-                    Map.of("text", prompt)
-                ))
-            )
-        );
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        String prompt = "你是一个动物行为分类器。根据下面提供的小动物特征或当前状态描述，将其分类到以下6个预定义状态标签中的一个。只能返回这6个单词之一（EATING, SLEEPING, PLAYING, SUNBATHING, WALKING, OTHER），不要返回任何其他内容、标点符号或解释说明。\n\n描述内容：" + description;
 
         try {
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-            String result = extractTextFromResponse(response);
+            String result = callDeepSeek(prompt);
             if (result != null) {
                 result = result.trim().toUpperCase();
                 if (result.contains("EATING")) return "EATING";
@@ -128,8 +117,6 @@ public class GeminiProvider implements IAIProvider {
             return null;
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
-
         StringBuilder sb = new StringBuilder();
         sb.append("你是一个高校校园小动物特征匹配助手。请根据下面提供的新观察到的小动物特征，判断它是否已经是数据库中已有的某个小动物。\n\n");
         sb.append("新发现的小动物信息：\n");
@@ -143,29 +130,15 @@ public class GeminiProvider implements IAIProvider {
               .append("\n");
         }
         sb.append("\n请对比他们的毛发颜色、条纹五官等身体特征：\n");
-        sb.append("1. 如果有非常高的匹配度（外观特征基本一致），认为他们是同小动物，请【仅返回】其 ID（数字，例如 \"1\"）。\n");
+        sb.append("1. 如果有非常高的匹配度（外观特征基本一致），认为他们是同一个小动物，请【仅返回】其 ID（数字，例如 \"1\"）。\n");
         sb.append("2. 如果明显不吻合，或者找不到匹配的，或者有任何冲突（如毛发颜色完全不同），请【仅返回】 \"NEW\"。\n");
         sb.append("注意：只能返回数字 ID 或单词 \"NEW\"，不要返回任何其他内容、标点符号、markdown 或解释性文字。");
 
-        Map<String, Object> requestBody = Map.of(
-            "contents", List.of(
-                Map.of("parts", List.of(
-                    Map.of("text", sb.toString())
-                ))
-            )
-        );
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
         try {
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-            String result = extractTextFromResponse(response);
+            String result = callDeepSeek(sb.toString());
             if (result != null) {
                 result = result.trim();
-                System.out.println("Gemini 实体匹配返回结果: " + result);
+                System.out.println("DeepSeek 实体匹配返回结果: " + result);
                 if (result.equalsIgnoreCase("NEW")) {
                     return null;
                 }
@@ -176,7 +149,7 @@ public class GeminiProvider implements IAIProvider {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Gemini 实体匹配失败: " + e.getMessage());
+            System.err.println("DeepSeek 实体匹配失败: " + e.getMessage());
             e.printStackTrace();
         }
         return null;
@@ -191,8 +164,6 @@ public class GeminiProvider implements IAIProvider {
             return oldFeatures;
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
-
         String prompt = "你是一个文本特征融合与整合专家。请将同一个校园小动物的历史特征描述与本次新发现的特征描述进行优化融合成一段话，消除重复与冗余，保留更丰富的细节。\n" +
                 "- 已保存历史特征: " + oldFeatures + "\n" +
                 "- 本次新识别特征: " + newFeatures + "\n\n" +
@@ -201,27 +172,13 @@ public class GeminiProvider implements IAIProvider {
                 "2. 字数控制在100字以内。\n" +
                 "3. 【只输出】优化融合后的纯文本内容，不要有任何前缀、后缀、代码块包装或说明。";
 
-        Map<String, Object> requestBody = Map.of(
-            "contents", List.of(
-                Map.of("parts", List.of(
-                    Map.of("text", prompt)
-                ))
-            )
-        );
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
         try {
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-            String result = extractTextFromResponse(response);
+            String result = callDeepSeek(prompt);
             if (result != null && !result.trim().isEmpty()) {
                 return result.trim();
             }
         } catch (Exception e) {
-            System.err.println("Gemini 特征优化融合失败: " + e.getMessage());
+            System.err.println("DeepSeek 特征优化融合失败: " + e.getMessage());
             e.printStackTrace();
         }
         // 发生异常时，简单拼接作为兜底
@@ -230,14 +187,12 @@ public class GeminiProvider implements IAIProvider {
 
     @Override
     public String generateAnimalSummary(com.pawtrack.entity.Animal animal, List<com.pawtrack.entity.LocationLog> logs) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + apiKey;
-
         StringBuilder sb = new StringBuilder();
         sb.append("你是一位动物行为观察专家和幽默作家。请根据以下校园流浪小动物的基本信息和历史足迹记录，为它生成一段有趣的简介。\n\n");
         sb.append("基本信息：\n");
         sb.append("- 昵称: ").append(animal.getName() != null ? animal.getName() : "未知").append("\n");
         sb.append("- 特征描述: ").append(animal.getDescription() != null ? animal.getDescription() : "无特征描述").append("\n\n");
-        
+
         sb.append("历史足迹记录（近期活动）：\n");
         if (logs == null || logs.isEmpty()) {
             sb.append("暂无足迹记录。\n");
@@ -258,27 +213,13 @@ public class GeminiProvider implements IAIProvider {
         sb.append("3. 参考范例：“TA是一只全是黄色的小猫，喜欢到处乱逛，没事就晒晒太阳，时常在草地上出没，真是只悠闲的咪。”\n");
         sb.append("4. 字数控制在100字以内。");
 
-        Map<String, Object> requestBody = Map.of(
-            "contents", List.of(
-                Map.of("parts", List.of(
-                    Map.of("text", sb.toString())
-                ))
-            )
-        );
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
         try {
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-            String result = extractTextFromResponse(response);
+            String result = callDeepSeek(sb.toString());
             if (result != null && !result.trim().isEmpty()) {
                 return result.trim().replaceAll("[#*]", "");
             }
         } catch (Exception e) {
-            System.err.println("Gemini 动物简介生成失败: " + e.getMessage());
+            System.err.println("DeepSeek 动物简介生成失败: " + e.getMessage());
             e.printStackTrace();
         }
         return "一只神秘的小动物，还没有人足够了解它呢。";
