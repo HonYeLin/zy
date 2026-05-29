@@ -106,8 +106,8 @@ info "正在后台启动 Java 服务..."
 nohup java -jar "$JAR_FILE" > backend.log 2>&1 &
 
 # 6. 验证启动状态
-info "步骤 6: 验证服务启动状态..."
-sleep 5
+info "步骤 6: 验证服务启动状态（最长等待 15 秒）..."
+sleep 15
 PID=$(lsof -t -i:$BACKEND_PORT 2>/dev/null)
 if [ -n "$PID" ]; then
     info "后端服务启动成功！运行 PID: $PID，正在监听端口 $BACKEND_PORT"
