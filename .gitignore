@@ -23,6 +23,7 @@ application-local.yml
 backend/jdk-17.0.2/
 backend/maven-3.9.6/
 deploy.sh.local
+backend/uploads/
 
 # System files
 .DS_Store
