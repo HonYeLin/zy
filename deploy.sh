@@ -23,7 +23,7 @@ echo "=========================================="
 # 1. 拉取最新代码
 info "步骤 1: 拉取最新 Git 代码..."
 cd "$PROJECT_ROOT" || error "找不到项目根目录: $PROJECT_ROOT"
-git pull origin main || warn "Git 拉取失败，将使用本地当前代码进行构建..."
+git pull origin main --tags || warn "Git 拉取失败，将使用本地当前代码进行构建..."
 
 # 2. 构建并部署前端
 info "步骤 2: 开始构建前端..."

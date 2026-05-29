@@ -14,7 +14,7 @@ echo "=========================================="
 
 # 1. 强制拉取远程仓库的最新更改
 info "步骤 1: 正在从 GitHub 获取最新代码..."
-git fetch origin main || error "无法连接至 GitHub，请检查服务器网络或凭证设置！"
+git fetch origin main --tags || error "无法连接至 GitHub，请检查服务器网络或凭证设置！"
 
 # 2. 强制覆盖本地已追踪文件的修改，解决潜在的冲突
 info "步骤 2: 正在强制同步并覆盖本地代码（本地配置如 .local-configs 不受影响）..."

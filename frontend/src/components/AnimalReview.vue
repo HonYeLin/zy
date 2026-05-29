@@ -374,20 +374,36 @@ const activeReplyCommentId = ref<number | null>(null);
 const replyInputContentMap = ref<Record<number, string>>({});
 const replyToUserNicknameMap = ref<Record<number, string>>({});
 
-const fetchReplies = async (commentId: number, isLoadMore = false) => {
+const fetchReplies = async (commentId: number, isLoadMore = false, isSilent = false) => {
   const page = repliesPageMap.value[commentId] || 0;
   const sort = repliesSortMap.value[commentId] || 'createdAt';
   
   try {
-    const res = await fetch(`/api/reviews/comments/${commentId}/replies?page=${page}&size=10&sort=${sort}`);
+    let url = '';
+    if (isSilent) {
+      const currentSize = (page + 1) * 10;
+      url = `/api/reviews/comments/${commentId}/replies?page=0&size=${currentSize}&sort=${sort}&_t=${Date.now()}`;
+    } else {
+      url = `/api/reviews/comments/${commentId}/replies?page=${isLoadMore ? page : 0}&size=10&sort=${sort}&_t=${Date.now()}`;
+    }
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
-      if (isLoadMore) {
-        repliesMap.value[commentId] = [...(repliesMap.value[commentId] || []), ...data.content];
+      if (isLoadMore && !isSilent) {
+        repliesMap.value = {
+          ...repliesMap.value,
+          [commentId]: [...(repliesMap.value[commentId] || []), ...data.content]
+        };
       } else {
-        repliesMap.value[commentId] = data.content;
+        repliesMap.value = {
+          ...repliesMap.value,
+          [commentId]: data.content
+        };
       }
-      repliesTotalPagesMap.value[commentId] = data.totalPages;
+      repliesTotalPagesMap.value = {
+        ...repliesTotalPagesMap.value,
+        [commentId]: data.totalPages
+      };
     }
   } catch (error) {
     console.error('Failed to fetch replies', error);
@@ -462,10 +478,12 @@ const submitReply = async (commentId: number) => {
 
 // --- 留言与评分系统 ---
 
-const fetchComments = async () => {
-  isLoadingComments.value = true;
+const fetchComments = async (isSilent = false) => {
+  if (!isSilent) {
+    isLoadingComments.value = true;
+  }
   try {
-    const res = await fetch(`/api/reviews/comments/${props.animal.id}?page=${currentPage.value}&size=5&sort=${currentSort.value}`);
+    const res = await fetch(`/api/reviews/comments/${props.animal.id}?page=${currentPage.value}&size=5&sort=${currentSort.value}&_t=${Date.now()}`);
     if (res.ok) {
       const data = await res.json();
       comments.value = data.content;
@@ -475,7 +493,9 @@ const fetchComments = async () => {
   } catch (error) {
     console.error('Failed to fetch comments', error);
   } finally {
-    isLoadingComments.value = false;
+    if (!isSilent) {
+      isLoadingComments.value = false;
+    }
   }
 };
 
@@ -603,15 +623,41 @@ const handleGlobalClick = (e: MouseEvent) => {
   }
 };
 
+let commentsPollInterval: any = null;
+
+const startPolling = () => {
+  stopPolling();
+  commentsPollInterval = setInterval(async () => {
+    // 1. Poll comments silently
+    await fetchComments(true);
+    // 2. Poll replies for expanded comments silently
+    for (const commentIdStr of Object.keys(isRepliesExpandedMap.value)) {
+      const commentId = parseInt(commentIdStr, 10);
+      if (isRepliesExpandedMap.value[commentId]) {
+        await fetchReplies(commentId, false, true);
+      }
+    }
+  }, 8000);
+};
+
+const stopPolling = () => {
+  if (commentsPollInterval) {
+    clearInterval(commentsPollInterval);
+    commentsPollInterval = null;
+  }
+};
+
 // Lifecycle
 onMounted(() => {
   fetchStats();
   fetchComments();
   document.addEventListener('click', handleGlobalClick);
+  startPolling();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick);
+  stopPolling();
 });
 
 watch(() => props.animal.id, () => {
@@ -619,8 +665,22 @@ watch(() => props.animal.id, () => {
   currentPage.value = 0;
   currentSort.value = 'createdAt';
   userRating.value = { appearanceScore: 0, temperScore: 0, visibilityScore: 0, clinginessScore: 0 };
+  
+  // Clear replies maps to prevent polling old comment replies
+  isRepliesExpandedMap.value = {};
+  repliesMap.value = {};
+  repliesPageMap.value = {};
+  repliesTotalPagesMap.value = {};
+  repliesSortMap.value = {};
+  activeReplyCommentId.value = null;
+  replyInputContentMap.value = {};
+  replyToUserNicknameMap.value = {};
+
   fetchStats();
   fetchComments();
+  
+  // Restart polling timer
+  startPolling();
 });
 </script>
 

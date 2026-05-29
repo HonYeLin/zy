@@ -7,7 +7,7 @@ import path from 'path'
 // 获取当前 git 标签版本号，如果失败则回退到 package.json 或默认版本 v2.1.2
 let version = 'v2.1.2'
 try {
-  version = execSync('git describe --tags --always').toString().trim()
+  version = execSync('git describe --tags --abbrev=0 --always').toString().trim()
 } catch (e) {
   try {
     const pkgPath = path.resolve(__dirname, 'package.json')
