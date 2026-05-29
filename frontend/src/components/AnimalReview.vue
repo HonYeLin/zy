@@ -1273,8 +1273,9 @@ watch(() => props.animal.id, () => {
   padding-left: 50px;
   font-size: 0.96rem;
   text-align: left;
-  width: 100%;
   box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .comment-footer {
@@ -1821,8 +1822,9 @@ watch(() => props.animal.id, () => {
   line-height: 1.5;
   white-space: pre-wrap;
   text-align: left;
-  width: 100%;
   box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .reply-footer {
   margin-left: 32px;
