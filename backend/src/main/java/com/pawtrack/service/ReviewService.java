@@ -30,6 +30,8 @@ public class ReviewService {
         comment.setUserId(request.getUserId());
         comment.setUserNickname(request.getUserNickname() == null || request.getUserNickname().trim().isEmpty() ? "匿名用户" : request.getUserNickname());
         comment.setContent(request.getContent());
+        comment.setParentId(request.getParentId());
+        comment.setReplyToUserNickname(request.getReplyToUserNickname());
         comment.setLikeCount(0);
         return commentRepository.save(comment);
     }
@@ -54,14 +56,22 @@ public class ReviewService {
     }
 
     public Page<AnimalComment> getCommentsByAnimalId(Long animalId, Pageable pageable) {
-        return commentRepository.findByAnimalId(animalId, pageable);
+        return commentRepository.findByAnimalIdAndParentIdIsNull(animalId, pageable);
     }
 
+    public Page<AnimalComment> getRepliesByParentId(Long parentId, Pageable pageable) {
+        return commentRepository.findByParentId(parentId, pageable);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
     public boolean deleteComment(Long commentId, Long userId) {
         Optional<AnimalComment> commentOpt = commentRepository.findById(commentId);
         if (commentOpt.isPresent()) {
             AnimalComment comment = commentOpt.get();
             if (comment.getUserId() != null && comment.getUserId().equals(userId)) {
+                if (comment.getParentId() == null) {
+                    commentRepository.deleteByParentId(commentId);
+                }
                 commentRepository.delete(comment);
                 return true;
             }

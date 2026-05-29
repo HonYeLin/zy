@@ -48,6 +48,22 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getCommentsByAnimalId(animalId, pageable));
     }
 
+    @GetMapping("/comments/{parentId}/replies")
+    public ResponseEntity<Page<AnimalComment>> getReplies(
+            @PathVariable Long parentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sort) {
+        
+        Sort sortOrder = Sort.by(Sort.Direction.ASC, sort);
+        if ("likeCount".equals(sort)) {
+             sortOrder = Sort.by(Sort.Direction.DESC, sort);
+        }
+        Pageable pageable = PageRequest.of(page, size, sortOrder);
+        
+        return ResponseEntity.ok(reviewService.getRepliesByParentId(parentId, pageable));
+    }
+
     @PostMapping("/comments/{commentId}/like")
     public ResponseEntity<AnimalComment> likeComment(
             @PathVariable Long commentId,

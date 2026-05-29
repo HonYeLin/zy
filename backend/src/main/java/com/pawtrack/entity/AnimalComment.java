@@ -27,6 +27,15 @@ public class AnimalComment {
     @Column(name = "like_count", nullable = false)
     private Integer likeCount = 0;
 
+    @Column(name = "parent_id")
+    private Long parentId;
+
+    @Column(name = "reply_to_user_nickname", length = 100)
+    private String replyToUserNickname;
+
+    @org.hibernate.annotations.Formula("(SELECT count(*) FROM animal_comments c WHERE c.parent_id = id)")
+    private Long replyCount;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

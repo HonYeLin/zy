@@ -12,8 +12,14 @@ import java.util.List;
 
 @Repository
 public interface AnimalCommentRepository extends JpaRepository<AnimalComment, Long> {
-    Page<AnimalComment> findByAnimalId(Long animalId, Pageable pageable);
+    Page<AnimalComment> findByAnimalIdAndParentIdIsNull(Long animalId, Pageable pageable);
+
+    Page<AnimalComment> findByParentId(Long parentId, Pageable pageable);
 
     @Query(value = "SELECT user_nickname FROM animal_comments WHERE user_nickname LIKE '游客%'", nativeQuery = true)
     List<String> findGuestNicknames();
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM AnimalComment c WHERE c.parentId = ?1")
+    void deleteByParentId(Long parentId);
 }

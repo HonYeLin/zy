@@ -132,6 +132,16 @@
                 >
                   👍 {{ comment.likeCount }}
                 </button>
+                <button class="reply-btn" @click="showReplyInput(comment.id)">
+                  💬 回复
+                </button>
+                <button 
+                  v-if="comment.replyCount > 0" 
+                  class="expand-replies-btn" 
+                  @click="toggleReplies(comment.id)"
+                >
+                  {{ isRepliesExpandedMap[comment.id] ? '折叠回复' : `展开 ${comment.replyCount} 条回复` }}
+                </button>
                 <!-- Delete button: visible only to comment owner -->
                 <button 
                   v-if="currentUser && comment.userId === currentUser.id"
@@ -147,6 +157,62 @@
                   </svg>
                   删除
                 </button>
+              </div>
+
+              <!-- 内联回复输入框 -->
+              <div v-if="activeReplyCommentId === comment.id" class="reply-input-area fade-in-animation">
+                <textarea 
+                  v-model="replyInputContentMap[comment.id]" 
+                  :placeholder="replyToUserNicknameMap[comment.id] ? `回复 @${replyToUserNicknameMap[comment.id]} :` : '写下你的回复...'" 
+                  class="comment-textarea reply-textarea"
+                ></textarea>
+                <div class="reply-input-actions">
+                  <button class="submit-reply-btn" @click="submitReply(comment.id)" :disabled="!replyInputContentMap[comment.id]?.trim()">
+                    发布
+                  </button>
+                  <button class="cancel-reply-btn" @click="showReplyInput(comment.id)">取消</button>
+                </div>
+              </div>
+
+              <!-- 展开的回复列表 -->
+              <div v-if="isRepliesExpandedMap[comment.id]" class="replies-list-container">
+                <div class="replies-header">
+                   <div class="sort-tabs">
+                     <span :class="{ active: repliesSortMap[comment.id] === 'createdAt' || !repliesSortMap[comment.id] }" @click="changeRepliesSort(comment.id, 'createdAt')">最新</span>
+                     <span :class="{ active: repliesSortMap[comment.id] === 'likeCount' }" @click="changeRepliesSort(comment.id, 'likeCount')">最热</span>
+                   </div>
+                </div>
+                <div class="replies-list">
+                  <div class="reply-item" v-for="reply in repliesMap[comment.id]" :key="reply.id">
+                    <div class="reply-user">
+                      <span class="user-avatar-placeholder small">{{ reply.userNickname.charAt(0) }}</span>
+                      <span class="user-name">{{ reply.userNickname }}</span>
+                      <span v-if="reply.replyToUserNickname" class="reply-to-text">回复 <span class="reply-target">@{{ reply.replyToUserNickname }}</span></span>
+                      <span class="comment-time">{{ new Date(reply.createdAt).toLocaleString() }}</span>
+                    </div>
+                    <div class="reply-content">{{ reply.content }}</div>
+                    <div class="reply-footer">
+                      <button class="reply-btn small" @click="showReplyInput(comment.id, reply.userNickname)">回复</button>
+                      <button 
+                        v-if="currentUser && reply.userId === currentUser.id"
+                        class="delete-reply-btn"
+                        @click="deleteReply(comment.id, reply.id)"
+                        title="删除回复"
+                      >
+                        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          <line x1="10" y1="11" x2="10" y2="17"></line>
+                          <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="replies-pagination" v-if="repliesPageMap[comment.id] < (repliesTotalPagesMap[comment.id] || 0) - 1">
+                  <button class="load-more-replies-btn" @click="loadMoreReplies(comment.id)">展开更多回复...</button>
+                </div>
               </div>
            </div>
         </div>
@@ -181,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 
 const isImageZoomed = ref(false);
 
@@ -298,6 +364,102 @@ try {
   likedCommentIds.value = [];
 }
 
+// --- 嵌套回复的状态与方法 ---
+const repliesMap = ref<Record<number, any[]>>({});
+const repliesPageMap = ref<Record<number, number>>({});
+const repliesTotalPagesMap = ref<Record<number, number>>({});
+const repliesSortMap = ref<Record<number, string>>({});
+const isRepliesExpandedMap = ref<Record<number, boolean>>({});
+const activeReplyCommentId = ref<number | null>(null);
+const replyInputContentMap = ref<Record<number, string>>({});
+const replyToUserNicknameMap = ref<Record<number, string>>({});
+
+const fetchReplies = async (commentId: number, isLoadMore = false) => {
+  const page = repliesPageMap.value[commentId] || 0;
+  const sort = repliesSortMap.value[commentId] || 'createdAt';
+  
+  try {
+    const res = await fetch(`/api/reviews/comments/${commentId}/replies?page=${page}&size=10&sort=${sort}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (isLoadMore) {
+        repliesMap.value[commentId] = [...(repliesMap.value[commentId] || []), ...data.content];
+      } else {
+        repliesMap.value[commentId] = data.content;
+      }
+      repliesTotalPagesMap.value[commentId] = data.totalPages;
+    }
+  } catch (error) {
+    console.error('Failed to fetch replies', error);
+  }
+};
+
+const toggleReplies = (commentId: number) => {
+  if (isRepliesExpandedMap.value[commentId]) {
+    isRepliesExpandedMap.value[commentId] = false;
+    repliesMap.value[commentId] = [];
+    repliesPageMap.value[commentId] = 0;
+  } else {
+    isRepliesExpandedMap.value[commentId] = true;
+    if (!repliesSortMap.value[commentId]) {
+      repliesSortMap.value[commentId] = 'createdAt';
+    }
+    repliesPageMap.value[commentId] = 0;
+    fetchReplies(commentId);
+  }
+};
+
+const loadMoreReplies = (commentId: number) => {
+  repliesPageMap.value[commentId] = (repliesPageMap.value[commentId] || 0) + 1;
+  fetchReplies(commentId, true);
+};
+
+const changeRepliesSort = (commentId: number, sort: string) => {
+  repliesSortMap.value[commentId] = sort;
+  repliesPageMap.value[commentId] = 0;
+  fetchReplies(commentId);
+};
+
+const showReplyInput = (commentId: number, replyToNickname?: string) => {
+  if (activeReplyCommentId.value === commentId) {
+    activeReplyCommentId.value = null;
+  } else {
+    activeReplyCommentId.value = commentId;
+  }
+  replyToUserNicknameMap.value[commentId] = replyToNickname || '';
+};
+
+const submitReply = async (commentId: number) => {
+  const content = replyInputContentMap.value[commentId];
+  if (!content || !content.trim()) return;
+  
+  try {
+    const res = await fetch(`/api/reviews/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        animalId: props.animal.id,
+        userId: props.currentUser ? props.currentUser.id : null,
+        userNickname: props.currentUser ? props.currentUser.nickname : '游客',
+        content: content.trim(),
+        parentId: commentId,
+        replyToUserNickname: replyToUserNicknameMap.value[commentId] || null
+      })
+    });
+    if (res.ok) {
+      replyInputContentMap.value[commentId] = '';
+      activeReplyCommentId.value = null;
+      isRepliesExpandedMap.value[commentId] = true;
+      repliesPageMap.value[commentId] = 0;
+      fetchReplies(commentId);
+      const c = comments.value.find(x => x.id === commentId);
+      if (c) c.replyCount = (c.replyCount || 0) + 1;
+    }
+  } catch (error) {
+    console.error("Failed to submit reply", error);
+  }
+};
+
 // --- 留言与评分系统 ---
 
 const fetchComments = async () => {
@@ -392,6 +554,33 @@ const deleteComment = async (commentId: number) => {
   }
 };
 
+const deleteReply = async (parentId: number, replyId: number) => {
+  if (!props.currentUser || !props.currentUser.id) {
+    alert('删除失败，未能获取用户信息。');
+    return;
+  }
+  if (!confirm('确认要删除这条回复吗？')) return;
+  try {
+    const res = await fetch(`/api/reviews/comments/${replyId}?userId=${props.currentUser.id}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      alert('回复已成功删除！');
+      repliesPageMap.value[parentId] = 0;
+      fetchReplies(parentId);
+      const c = comments.value.find(x => x.id === parentId);
+      if (c) {
+        c.replyCount = Math.max(0, (c.replyCount || 0) - 1);
+      }
+    } else {
+      alert('删除失败，可能没有权限。');
+    }
+  } catch (error) {
+    console.error('Failed to delete reply', error);
+    alert('删除失败，网络错误。');
+  }
+};
+
 const changeSort = (sort: string) => {
   if (currentSort.value === sort) return;
   currentSort.value = sort;
@@ -405,10 +594,24 @@ const changePage = (page: number) => {
   fetchComments();
 };
 
+const handleGlobalClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (activeReplyCommentId.value !== null) {
+    if (!target.closest('.reply-input-area') && !target.closest('.reply-btn')) {
+      activeReplyCommentId.value = null;
+    }
+  }
+};
+
 // Lifecycle
 onMounted(() => {
   fetchStats();
   fetchComments();
+  document.addEventListener('click', handleGlobalClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleGlobalClick);
 });
 
 watch(() => props.animal.id, () => {
@@ -1010,6 +1213,8 @@ watch(() => props.animal.id, () => {
   padding-left: 50px;
   font-size: 0.96rem;
   text-align: left;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .comment-footer {
@@ -1057,6 +1262,29 @@ watch(() => props.animal.id, () => {
   border-radius: 6px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 12px;
+}
+
+.delete-reply-btn {
+  background: rgba(229, 57, 53, 0.04);
+  border: none;
+  color: #E53935;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 10px;
+}
+.delete-reply-btn:hover {
+  background: rgba(229, 57, 53, 0.12);
+  color: #D32F2F;
+  transform: scale(1.03);
+}
+.delete-reply-btn:active {
+  transform: scale(0.97);
 }
 
 .delete-comment-btn:hover {
@@ -1401,5 +1629,164 @@ watch(() => props.animal.id, () => {
 }
 .zoom-fade-leave-to .image-zoom-modal {
   transform: scale(0.95);
+}
+
+/* --- 嵌套回复样式 (手账风) --- */
+.reply-btn {
+  background: none;
+  border: none;
+  color: #558B2F;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: 10px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.reply-btn:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+.reply-btn.small {
+  font-size: 0.75em;
+  margin-left: 0;
+  margin-top: 4px;
+}
+.expand-replies-btn {
+  background: none;
+  border: none;
+  color: #795548;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: auto;
+  opacity: 0.85;
+}
+.expand-replies-btn:hover {
+  text-decoration: underline;
+}
+
+.reply-input-area {
+  margin-top: 15px;
+  background: rgba(255, 255, 255, 0.4);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(85, 139, 47, 0.3);
+  position: relative;
+}
+.reply-textarea {
+  min-height: 60px;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+.reply-input-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.submit-reply-btn {
+  background: #558B2F;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.submit-reply-btn:disabled {
+  background: #C8E6C9;
+  cursor: not-allowed;
+}
+.cancel-reply-btn {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.replies-list-container {
+  margin-top: 15px;
+  margin-left: 35px;
+  border-left: 2px dashed rgba(196, 185, 163, 0.6);
+  padding-left: 15px;
+  position: relative;
+}
+.replies-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+.replies-header .sort-tabs {
+  gap: 8px;
+}
+.replies-header .sort-tabs span {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+}
+
+.reply-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(0,0,0,0.05);
+}
+.reply-item:last-child {
+  border-bottom: none;
+}
+.reply-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.user-avatar-placeholder.small {
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  line-height: 24px;
+}
+.reply-to-text {
+  font-size: 0.8em;
+  color: #666;
+}
+.reply-target {
+  color: #558B2F;
+  font-weight: bold;
+}
+.reply-content {
+  font-size: 0.9em;
+  color: #4E342E;
+  margin-left: 32px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+.reply-footer {
+  margin-left: 32px;
+  display: flex;
+}
+.load-more-replies-btn {
+  background: none;
+  border: none;
+  color: #558B2F;
+  font-size: 0.85em;
+  cursor: pointer;
+  margin-top: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 0;
+}
+.load-more-replies-btn:hover {
+  text-decoration: underline;
+}
+.fade-in-animation {
+  animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

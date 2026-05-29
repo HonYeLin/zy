@@ -8,4 +8,6 @@ public class CommentRequest {
     private Long userId;
     private String userNickname;
     private String content;
+    private Long parentId;
+    private String replyToUserNickname;
 }
