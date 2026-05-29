@@ -20,6 +20,9 @@ target/
 .gemini/
 application-local.yml
 .local-configs/
+backend/jdk-17.0.2/
+backend/maven-3.9.6/
+deploy.sh.local
 
 # System files
 .DS_Store

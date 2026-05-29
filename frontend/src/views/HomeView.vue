@@ -1946,8 +1946,9 @@ body, html {
 
 .active-tooltip-notebook {
   position: absolute;
-  top: -16px;
-  right: -10px;
+  top: -10px;
+  right: -25px;
+  transform: rotate(15deg);
   background-color: #fff9e6;
   border: 1px solid #ffd54f;
   padding: 4px 10px;
@@ -1958,7 +1959,7 @@ body, html {
   box-shadow: 1px 2px 5px rgba(0,0,0,0.1);
   z-index: 10;
   pointer-events: none;
-  animation: float-tooltip 2s ease-in-out infinite;
+  animation: float-tooltip-tilt 2s ease-in-out infinite;
   white-space: nowrap;
 }
 
@@ -1974,10 +1975,10 @@ body, html {
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-@keyframes float-tooltip {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-  100% { transform: translateY(0); }
+@keyframes float-tooltip-tilt {
+  0% { transform: rotate(15deg) translateY(0); }
+  50% { transform: rotate(15deg) translateY(-3px); }
+  100% { transform: rotate(15deg) translateY(0); }
 }
 
 .card-nickname {
