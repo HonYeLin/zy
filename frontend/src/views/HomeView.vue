@@ -668,9 +668,7 @@ onUnmounted(() => {
                     这只小家伙还没有生活记录喔。在地图上添加或更新它的足迹，AI 行为分析师就会为它自动撰写有趣的生活日记啦！🐾
                   </div>
                 </div>
-                <div class="diary-footer">
-                  <span>✍️ 校园小生命分析师 Gemini</span>
-                </div>
+
               </div>
             </div>
           </div>
