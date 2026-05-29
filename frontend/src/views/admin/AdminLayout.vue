@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 
+const appVersion = import.meta.env.VITE_APP_VERSION || 'v2.1.2';
+
 const router = useRouter();
 const isLoggedIn = ref(false);
 
@@ -51,6 +53,10 @@ const handleLogout = async () => {
       </nav>
       <div class="sidebar-footer">
         <button @click="handleLogout" class="logout-btn">退出登录</button>
+        <div class="admin-version">
+          <span class="pulse-dot"></span>
+          <span>系统版本: {{ appVersion }}</span>
+        </div>
       </div>
     </aside>
     <main class="admin-main">
@@ -183,6 +189,42 @@ const handleLogout = async () => {
 .logout-btn:hover {
   background: #ef4444;
   color: white;
+}
+
+.admin-version {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.admin-version .pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: admin-pulse 2s infinite;
+}
+
+@keyframes admin-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 /* Main Area */

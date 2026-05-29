@@ -4,6 +4,9 @@ import axios from 'axios';
 import MapContainer from '../components/MapContainer.vue';
 import AnimalReview from '../components/AnimalReview.vue';
 
+// Get app version from environment variable (injected by Vite define)
+const appVersion = import.meta.env.VITE_APP_VERSION || 'v2.1.2';
+
 // Define Interface
 interface Animal {
   id: number;
@@ -938,6 +941,18 @@ onUnmounted(() => {
         </div>
       </div>
     </Transition>
+
+    <!-- 底部页脚实时版本号显示 -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span class="footer-brand">🐾 校园爪印</span>
+        <span class="footer-divider">|</span>
+        <div class="version-badge">
+          <span class="pulse-dot"></span>
+          <span class="version-text">当前版本: {{ appVersion }}</span>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -2490,5 +2505,79 @@ body, html {
 }
 .auth-fade-enter-from, .auth-fade-leave-to {
   opacity: 0;
+}
+
+/* Footer & Version styles */
+.app-footer {
+  margin-top: auto;
+  padding: 1.5rem 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.02);
+  z-index: 50;
+  transition: all 0.3s ease;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.88rem;
+  color: #4e6e4e;
+  font-weight: 500;
+}
+
+.footer-brand {
+  letter-spacing: 0.5px;
+}
+
+.footer-divider {
+  color: rgba(78, 110, 78, 0.3);
+}
+
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: #2e7d32;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #4caf50;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+  animation: version-pulse 2s infinite;
+}
+
+@keyframes version-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 5px rgba(76, 175, 80, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+  }
 }
 </style>
