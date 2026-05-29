@@ -600,8 +600,9 @@ const trajectoryLineColor = computed(() => {
             </div>
             
 
+            <div class="input-label-tag">记录小动物的外貌特征</div>
             <div class="input-group">
-              <textarea v-model="formSceneDescription" placeholder="有什么画面描述？(如：大橘正在草地里睡午觉)" rows="2" class="elegant-input"></textarea>
+              <textarea v-model="formFeatures" placeholder="有什么外貌特征？(如：长着粉红鼻头的大橘猫，尾巴有点折)" rows="2" class="elegant-input"></textarea>
             </div>
 
             <!-- 行为状态选择器 (behavior_tag) -->
