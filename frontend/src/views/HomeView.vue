@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axios from 'axios';
 import MapContainer from '../components/MapContainer.vue';
 import AnimalReview from '../components/AnimalReview.vue';
+import { useScrambler } from '../composables/useScrambler';
 
 // Get app version from environment variable (injected by Vite define)
 const appVersion = import.meta.env.VITE_APP_VERSION || 'v2.1.2';
@@ -169,6 +170,8 @@ const selectedAnimal = computed(() => {
 const showAiModal = ref(false);
 const isAiLoading = ref(false);
 const aiReasoningResult = ref<string>('');
+const { scramble } = useScrambler();
+const animatedAiText = ref('');
 const showCorrectionDropdown = ref(false);
 const selectedCorrectBehavior = ref<string>('');
 
@@ -375,6 +378,15 @@ watch(selectedAnimalId, (newId) => {
     fetchNarrative(newId);
   } else {
     lifeRecords.value = [];
+  }
+});
+
+// Watch aiReasoningResult to trigger the scramble decoding animation
+watch(aiReasoningResult, (newVal) => {
+  if (newVal) {
+    scramble(animatedAiText, newVal);
+  } else {
+    animatedAiText.value = '';
   }
 });
 
@@ -765,7 +777,7 @@ onUnmounted(() => {
               <p>AI 正在分析过去 7 天的轨迹序列与纠偏记忆...</p>
             </div>
             <div v-else>
-              <p class="reasoning-text">{{ aiReasoningResult }}</p>
+              <p class="reasoning-text">{{ animatedAiText }}</p>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, toRef } from 'vue';
 import axios from 'axios';
+import { useScrambler } from '../composables/useScrambler';
 
 const props = withDefaults(defineProps<{
   activeTrackAnimalId?: number | null
@@ -41,6 +42,7 @@ const formType = ref('Cat'); // 'Cat' | 'Dog' | 'Other'
 const formNickname = ref('');
 const formFeatures = ref('');
 const formSceneDescription = ref('');
+const { scramble } = useScrambler();
 const formBehaviorTag = ref('WALKING'); // '' | 'EATING' | 'SLEEPING' | 'PLAYING' | 'SUNBATHING' | 'WALKING' | 'OTHER'
 const formTimeOffset = ref(0); // minutes offset: 0, 10, 30, 60, 120
 const formPhotoUrl = ref('');
@@ -236,11 +238,11 @@ const handlePhotoCapture = async (event: any) => {
         }
       }
       if (ai.features) {
-        formFeatures.value = ai.features;
+        scramble(formFeatures, ai.features);
       }
 
       if (ai.sceneDescription) {
-        formSceneDescription.value = ai.sceneDescription;
+        scramble(formSceneDescription, ai.sceneDescription);
       }
       if (ai.behaviorTag) {
         formBehaviorTag.value = ai.behaviorTag;
